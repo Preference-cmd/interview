@@ -10,6 +10,7 @@ import {
 import type { DashboardSummary, Store } from "@/lib/types";
 import { AlertList } from "@/components/AlertList";
 import { StoreList } from "@/components/StoreList";
+import { StoreDetailModal } from "@/components/StoreDetailModal";
 import {
   StatePieChart,
   ManualReviewBarChart,
@@ -27,6 +28,8 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   async function loadData() {
     setLoading(true);
@@ -50,7 +53,7 @@ export default function DashboardPage() {
     loadData();
     const interval = setInterval(loadData, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshTrigger]);
 
   async function handleAcknowledge(alertId: number) {
     await acknowledgeAlert(alertId);
@@ -198,7 +201,7 @@ export default function DashboardPage() {
               {/* Stores Tab */}
               {tab === "stores" && (
                 <div className="bg-ivory rounded-very-rounded border border-border-cream shadow-whisper p-6 overflow-hidden">
-                   <StoreList stores={stores} />
+                   <StoreList stores={stores} onSelectStore={setSelectedStoreId} />
                 </div>
               )}
 
@@ -212,6 +215,15 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      <StoreDetailModal
+        storeId={selectedStoreId}
+        onClose={() => setSelectedStoreId(null)}
+        onWorkflowStarted={() => {
+          setSelectedStoreId(null);
+          setRefreshTrigger((n) => n + 1);
+        }}
+      />
     </div>
   );
 }

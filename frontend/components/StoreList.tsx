@@ -2,18 +2,18 @@
 
 import { Store } from "@/lib/types";
 import { StateBadge } from "@/components/StateBadge";
-import { startWorkflow, getStatus } from "@/lib/api";
+import { getStatus } from "@/lib/api";
 import { useEffect, useState } from "react";
-import { Play, RefreshCw, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StoreListProps {
   stores: Store[];
+  onSelectStore: (storeId: number) => void;
 }
 
-export function StoreList({ stores }: StoreListProps) {
+export function StoreList({ stores, onSelectStore }: StoreListProps) {
   const [storeStatuses, setStoreStatuses] = useState<Record<number, any>>({});
-  const [loading, setLoading] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     stores.forEach((store) => {
@@ -24,20 +24,6 @@ export function StoreList({ stores }: StoreListProps) {
         .catch(() => {});
     });
   }, [stores]);
-
-  async function handleStart(storeId: number) {
-    setLoading((prev) => ({ ...prev, [storeId]: true }));
-    try {
-      await startWorkflow(storeId);
-      setTimeout(async () => {
-        const status = await getStatus(storeId);
-        setStoreStatuses((prev) => ({ ...prev, [storeId]: status }));
-        setLoading((prev) => ({ ...prev, [storeId]: false }));
-      }, 1500);
-    } catch {
-      setLoading((prev) => ({ ...prev, [storeId]: false }));
-    }
-  }
 
   return (
     <div className="overflow-x-auto">
@@ -59,11 +45,11 @@ export function StoreList({ stores }: StoreListProps) {
         <tbody className="divide-y divide-border-cream">
           {stores.map((store) => {
             const status = storeStatuses[store.id];
-            const isLoading = loading[store.id];
             return (
               <tr
                 key={store.id}
-                className="group hover:bg-parchment/50 transition-colors"
+                className="cursor-pointer hover:bg-parchment/50 transition-colors"
+                onClick={() => onSelectStore(store.id)}
               >
                 <td className="py-4 px-4">
                   <div className="font-medium text-anthropic-near-black">{store.name}</div>
@@ -115,23 +101,7 @@ export function StoreList({ stores }: StoreListProps) {
                   )}
                 </td>
                 <td className="py-4 px-4">
-                  <button
-                    onClick={() => handleStart(store.id)}
-                    disabled={isLoading}
-                    className={cn(
-                      "inline-flex items-center gap-2 px-3 py-1.5 rounded-subtly-rounded text-xs font-medium transition-all shadow-sm",
-                      isLoading 
-                        ? "bg-warm-sand text-stone-gray cursor-not-allowed" 
-                        : "bg-terracotta text-ivory hover:opacity-90 active:scale-95"
-                    )}
-                  >
-                    {isLoading ? (
-                      <RefreshCw className="size-3 animate-spin" />
-                    ) : (
-                      <Play className="size-3 fill-current" />
-                    )}
-                    {isLoading ? "Starting" : "Start"}
-                  </button>
+                  <span className="text-[11px] text-stone-gray/50">Click to view</span>
                 </td>
               </tr>
             );

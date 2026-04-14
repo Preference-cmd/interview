@@ -11,6 +11,8 @@
 | 2026-04-14 | 所有 agent 均为 mock | 无真实美团/开店宝/企微 接入需求 |
 | 2026-04-14 | Frontend: Tailwind CSS v4 + shadcn/ui | Modern CSS tooling, design system in `frontend/DESIGN.md` |
 | 2026-04-14 | Frontend 设计规范存放于 `doc/specs/` | 与源码分离，便于独立演进 |
+| 2026-04-14 | Backend: SQL migration 系统替代 `create_all` | 支持生产环境 schema 演进 |
+| 2026-04-14 | Backend: 全面 async 化 + 模块化拆分 | 统一 sync/async 混乱现状 |
 
 ---
 
@@ -41,9 +43,10 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 - **0 个组件添加**，当前所有组件均为手写
 
 ### 进行中
-| Feature | Spec | 状态 |
+| Feature | Spec/Plan | 状态 |
 |---------|------|------|
 | Store Detail Page | `superpowers/specs/STORE-DETAIL-DESIGN.md` | 设计完成，待实现 |
+| Backend async + modularization | `superpowers/plans/2026-04-14-*.md` | Plans 1-3 待执行 |
 
 ### 技术债务
 ```
@@ -72,10 +75,24 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 
 ### 已知问题
 
-| 优先级 | 问题 | 说明 |
-|--------|------|------|
-| P0 | `workflow_instances.store_id` 缺唯一约束 | 并发创建可能产生多条记录 |
-| P0 | 缺关键查询索引 | `agent_runs`, `event_logs`, `alerts`, `reports` 需索引 |
-| P1 | 数据库层 sync/async 不一致 | `AsyncSessionLocal` 未使用，`get_db()` 产出 sync Session |
-| P1 | `AgentRun.retry_count` 永远是 0 | `engine.py` 写死为 0 |
-| P1 | 并发竞态 | 两个并发 `/stores/{id}/start` 可能同时创建 workflow |
+| 优先级 | 问题 | 说明 | 状态 |
+|--------|------|------|------|
+| P0 | `workflow_instances.store_id` 缺唯一约束 | 并发创建可能产生多条记录 | ✅ 已修复 |
+| P0 | 缺关键查询索引 | `agent_runs`, `event_logs`, `alerts`, `reports` 需索引 | ✅ 已修复 |
+| P1 | 数据库层 sync/async 不一致 | `AsyncSessionLocal` 未使用，`get_db()` 产出 sync Session | Plan 1-2 中修复 |
+| P1 | `AgentRun.retry_count` 永远是 0 | `engine.py` 写死为 0 | Plan 3 中修复 |
+| P1 | 并发竞态 | 两个并发 `/stores/{id}/start` 可能同时创建 workflow | Plan 3 中修复 |
+
+### 进行中
+| Feature | Plan | 状态 |
+|---------|------|------|
+| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-sql-migrations.md` | Plan 1 — 待执行 |
+| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-database-models-schemas.md` | Plan 2 — 待执行 |
+| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-routes-engine-async.md` | Plan 3 — 待执行 |
+
+### 技术债务
+```
+# TODO: replace with real Redis  (engine.py — 内存队列替代方案标注)
+# TODO: Alembic 替代手写 SQL migrations (if project scales beyond SQLite)
+# TODO: verify P1 retry_count fix with integration test
+```

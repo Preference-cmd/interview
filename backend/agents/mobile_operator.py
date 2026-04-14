@@ -1,6 +1,7 @@
 import asyncio
 import random
-from backend.agents.base import BaseAgent, AgentStatus, AgentResult
+
+from backend.agents.base import AgentResult, AgentStatus, BaseAgent
 
 
 class MobileOperatorAgent(BaseAgent):
@@ -14,9 +15,7 @@ class MobileOperatorAgent(BaseAgent):
         self.failure_rate = failure_rate
 
     async def execute(self, context: dict) -> AgentResult:
-        self._logger.info(
-            f"MobileOperator executing for store: {context.get('store_id')}"
-        )
+        self._logger.info(f"MobileOperator executing for store: {context.get('store_id')}")
 
         # Simulate delay 2-5 seconds
         delay = random.uniform(2.0, 5.0)
@@ -28,9 +27,7 @@ class MobileOperatorAgent(BaseAgent):
 
         # Simulate material check
         material_status = random.choice(["approved", "needs_review", "rejected"])
-        actions_taken.append(
-            {"action": "check_material", "status": material_status}
-        )
+        actions_taken.append({"action": "check_material", "status": material_status})
 
         # Simulate activity confirmation
         if store.get("ros_health") in ["low", "medium"]:

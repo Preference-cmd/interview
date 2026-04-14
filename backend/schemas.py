@@ -1,15 +1,15 @@
 from datetime import datetime
-from typing import Optional, Any
+
 from pydantic import BaseModel, Field
 
-
 # --- Store schemas ---
+
 
 class StoreImportItem(BaseModel):
     store_id: str
     name: str
-    city: Optional[str] = None
-    category: Optional[str] = None
+    city: str | None = None
+    category: str | None = None
     rating: float = 0.0
     monthly_orders: int = 0
     gmv_last_7d: float = 0.0
@@ -29,8 +29,8 @@ class StoreResponse(BaseModel):
     id: int
     store_id: str
     name: str
-    city: Optional[str]
-    category: Optional[str]
+    city: str | None
+    category: str | None
     rating: float
     monthly_orders: int
     gmv_last_7d: float
@@ -48,25 +48,27 @@ class StoreResponse(BaseModel):
 
 # --- Workflow schemas ---
 
+
 class WorkflowStatusResponse(BaseModel):
     store_id: int
     store_name: str
     current_state: str
     consecutive_failures: int
     retry_count: int
-    started_at: Optional[datetime]
+    started_at: datetime | None
     recent_agent_runs: list["AgentRunResponse"]
 
 
 # --- Agent schemas ---
 
+
 class AgentRunResponse(BaseModel):
     id: int
     agent_type: str
     status: str
-    state_at_run: Optional[str]
+    state_at_run: str | None
     output_data: dict
-    error_msg: Optional[str]
+    error_msg: str | None
     retry_count: int
     duration_ms: int
     created_at: datetime
@@ -77,14 +79,15 @@ class AgentRunResponse(BaseModel):
 
 # --- Event timeline ---
 
+
 class EventLogResponse(BaseModel):
     id: int
     event_type: str
-    from_state: Optional[str]
-    to_state: Optional[str]
-    agent_type: Optional[str]
-    message: Optional[str]
-    extra_data: Optional[dict] = None
+    from_state: str | None
+    to_state: str | None
+    agent_type: str | None
+    message: str | None
+    extra_data: dict | None = None
     created_at: datetime
 
     class Config:
@@ -100,6 +103,7 @@ class TimelineResponse(BaseModel):
 
 # --- Dashboard ---
 
+
 class DashboardSummaryResponse(BaseModel):
     total_stores: int
     state_distribution: dict[str, int]
@@ -111,12 +115,13 @@ class DashboardSummaryResponse(BaseModel):
 
 # --- Alert schemas ---
 
+
 class AlertResponse(BaseModel):
     id: int
     store_id: int
     alert_type: str
     severity: str
-    message: Optional[str]
+    message: str | None
     acknowledged: bool
     created_at: datetime
 

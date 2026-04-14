@@ -1,6 +1,7 @@
 import os
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./multi_agent_ops.db")
 
@@ -19,7 +20,6 @@ AsyncSessionLocal = sessionmaker(
 Base = declarative_base()
 
 
-
 async def get_db():
     """Dependency for FastAPI routes to get DB session."""
     async with AsyncSessionLocal() as session:
@@ -35,5 +35,4 @@ async def get_db():
 
 def init_db():
     """Initialize database tables (sync version for startup)."""
-    from models import Store, WorkflowInstance, AgentRun, EventLog, Alert, Report
     Base.metadata.create_all(bind=engine)

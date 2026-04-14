@@ -1,3 +1,3 @@
-from backend.agents.base import BaseAgent, AgentStatus, AgentResult
+from backend.agents.base import AgentResult, AgentStatus, BaseAgent
 
-__all__ = ["BaseAgent", "AgentStatus", "AgentResult"]
+__all__ = ["AgentResult", "AgentStatus", "BaseAgent"]

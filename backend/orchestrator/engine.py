@@ -1,27 +1,25 @@
-from datetime import datetime, UTC
-from typing import Optional
-import asyncio
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.models import (
-    Store,
-    WorkflowInstance,
-    AgentRun,
-    EventLog,
-    Alert,
-    Report,
-    WorkflowState,
-    AgentStatus as ModelAgentStatus,
-    VALID_TRANSITIONS,
-)
-from backend.agents.base import AgentStatus as AgentResultStatus, AgentResult
 from backend.agents.analyzer import AnalyzerAgent
-from backend.agents.web_operator import WebOperatorAgent
+from backend.agents.base import AgentResult
+from backend.agents.base import AgentStatus as AgentResultStatus
 from backend.agents.mobile_operator import MobileOperatorAgent
 from backend.agents.reporter import ReporterAgent
+from backend.agents.web_operator import WebOperatorAgent
 from backend.logging_config import get_logger
+from backend.models import (
+    VALID_TRANSITIONS,
+    AgentRun,
+    Alert,
+    EventLog,
+    Report,
+    Store,
+    WorkflowInstance,
+    WorkflowState,
+)
 
 logger = get_logger(__name__)
 
@@ -76,9 +74,7 @@ class WorkflowEngine:
         wf = self.get_or_create_workflow(store)
         state = WorkflowState(wf.current_state)
 
-        logger.info(
-            f"Starting workflow for store {store.store_id}, state={state.value}"
-        )
+        logger.info(f"Starting workflow for store {store.store_id}, state={state.value}")
 
         if state == WorkflowState.DONE:
             logger.info("Store already DONE, skipping")
@@ -232,9 +228,7 @@ class WorkflowEngine:
         """Transition workflow to a new state with validation."""
         valid = VALID_TRANSITIONS.get(from_state, set())
         if to_state not in valid and to_state != WorkflowState.MANUAL_REVIEW:
-            logger.error(
-                f"Invalid transition: {from_state.value} -> {to_state.value}"
-            )
+            logger.error(f"Invalid transition: {from_state.value} -> {to_state.value}")
             return
 
         old_state = wf.current_state
@@ -249,13 +243,9 @@ class WorkflowEngine:
             to_state=to_state.value,
             message=f"State transition: {old_state} -> {to_state.value}",
         )
-        logger.info(
-            f"Store {store_id}: transitioned {from_state.value} -> {to_state.value}"
-        )
+        logger.info(f"Store {store_id}: transitioned {from_state.value} -> {to_state.value}")
 
-    async def _generate_report(
-        self, store: Store, context: dict, report_type: str
-    ):
+    async def _generate_report(self, store: Store, context: dict, report_type: str):
         """Generate and persist a report."""
         report_context = {
             **context,
@@ -318,11 +308,11 @@ class WorkflowEngine:
         self,
         store_id: int,
         event_type: str,
-        from_state: Optional[str] = None,
-        to_state: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        message: Optional[str] = None,
-        extra_data: Optional[dict] = None,
+        from_state: str | None = None,
+        to_state: str | None = None,
+        agent_type: str | None = None,
+        message: str | None = None,
+        extra_data: dict | None = None,
     ):
         """Create a structured event log entry."""
         event = EventLog(
@@ -342,7 +332,7 @@ class WorkflowEngine:
         alert_type: str,
         severity: str,
         message: str,
-        extra_data: Optional[dict] = None,
+        extra_data: dict | None = None,
     ):
         """Create an alert for anomalies."""
         alert = Alert(

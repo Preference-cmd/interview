@@ -1,10 +1,9 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
 import asyncio
 import random
 import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 
 from backend.logging_config import get_logger
 
@@ -23,8 +22,8 @@ class AgentStatus(str, Enum):
 class AgentResult:
     agent_type: str
     status: AgentStatus
-    data: Optional[dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
     duration_ms: int = 0
 
 
@@ -51,14 +50,12 @@ class BaseAgent(ABC):
         Run agent with exponential backoff retry.
         If failure_rate > 0, randomly fails before executing (for mock simulation).
         """
-        last_result: Optional[AgentResult] = None
+        last_result: AgentResult | None = None
 
         for attempt in range(max_retries):
             # Simulate random failure for mock agents
             if failure_rate > 0 and random.random() < failure_rate:
-                self._logger.warning(
-                    f"[attempt {attempt + 1}/{max_retries}] Simulated failure"
-                )
+                self._logger.warning(f"[attempt {attempt + 1}/{max_retries}] Simulated failure")
                 last_result = AgentResult(
                     agent_type=self.agent_type,
                     status=AgentStatus.FAILED,

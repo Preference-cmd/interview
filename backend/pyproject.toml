@@ -2,7 +2,7 @@
 name = "multi-agent-ops-backend"
 version = "0.1.0"
 description = "Multi-agent operations system for local life services"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
@@ -18,9 +18,42 @@ dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "httpx>=0.25.0",
+    "ruff>=0.15.10",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["../tests"]
 pythonpath = ["/Users/pref2rence/project/lls/multi-agent-ops"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = [
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    "*.pyc",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "SIM",   # simplify
+    "T20",   # print statements
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long (handled by formatter or set via line-length)
+    "RUF001",  # fullwidth punctuation in Chinese strings (intentional)
+    "UP042",  # StrEnum vs str+Enum — existing code uses str,enum.Enum pattern
+    "RUF012",  # __table_args__ dict is immutable; class sets are intentionally shared
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]

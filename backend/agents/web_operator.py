@@ -1,6 +1,7 @@
 import asyncio
 import random
-from backend.agents.base import BaseAgent, AgentStatus, AgentResult
+
+from backend.agents.base import AgentResult, AgentStatus, BaseAgent
 
 
 class WebOperatorAgent(BaseAgent):

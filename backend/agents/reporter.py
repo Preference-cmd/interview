@@ -1,5 +1,6 @@
-from datetime import datetime, UTC
-from backend.agents.base import BaseAgent, AgentStatus, AgentResult
+from datetime import UTC, datetime
+
+from backend.agents.base import AgentResult, AgentStatus, BaseAgent
 
 
 class ReporterAgent(BaseAgent):
@@ -93,9 +94,7 @@ class ReporterAgent(BaseAgent):
         recommendations,
     ) -> str:
         report_type_cn = "日报" if report_type == "daily" else "周报"
-        ros_health_cn = {"low": "低", "medium": "中", "high": "高"}.get(
-            ros_health, "未知"
-        )
+        ros_health_cn = {"low": "低", "medium": "中", "high": "高"}.get(ros_health, "未知")
 
         lines = [
             f"# {store_name} {report_type_cn}",
@@ -132,4 +131,3 @@ class ReporterAgent(BaseAgent):
         )
 
         return "\n".join(lines)
-

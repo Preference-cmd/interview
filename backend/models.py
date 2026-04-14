@@ -1,7 +1,19 @@
-from datetime import datetime, UTC
-from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey, Text, Enum as SAEnum
-from sqlalchemy.orm import relationship
 import enum
+from datetime import UTC, datetime
+
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import relationship
 
 from backend.database import Base
 
@@ -29,8 +41,17 @@ VALID_TRANSITIONS = {
     WorkflowState.DIAGNOSIS: {WorkflowState.FOUNDATION, WorkflowState.MANUAL_REVIEW},
     WorkflowState.FOUNDATION: {WorkflowState.DAILY_OPS, WorkflowState.MANUAL_REVIEW},
     WorkflowState.DAILY_OPS: {WorkflowState.WEEKLY_REPORT, WorkflowState.MANUAL_REVIEW},
-    WorkflowState.WEEKLY_REPORT: {WorkflowState.DONE, WorkflowState.DAILY_OPS, WorkflowState.MANUAL_REVIEW},
-    WorkflowState.MANUAL_REVIEW: {WorkflowState.NEW_STORE, WorkflowState.DIAGNOSIS, WorkflowState.FOUNDATION, WorkflowState.DAILY_OPS},
+    WorkflowState.WEEKLY_REPORT: {
+        WorkflowState.DONE,
+        WorkflowState.DAILY_OPS,
+        WorkflowState.MANUAL_REVIEW,
+    },
+    WorkflowState.MANUAL_REVIEW: {
+        WorkflowState.NEW_STORE,
+        WorkflowState.DIAGNOSIS,
+        WorkflowState.FOUNDATION,
+        WorkflowState.DAILY_OPS,
+    },
     WorkflowState.DONE: set(),
 }
 
@@ -65,11 +86,14 @@ class Store(Base):
 
 class WorkflowInstance(Base):
     __tablename__ = "workflow_instances"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        UniqueConstraint("store_id", name="uq_workflow_store_id"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
-    current_state = Column(String(32), default=WorkflowState.NEW_STORE.value)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    current_state = Column(String(32), default=WorkflowState.NEW_STORE.value, index=True)
     consecutive_failures = Column(Integer, default=0)
     retry_count = Column(Integer, default=0)
     started_at = Column(DateTime, nullable=True)
@@ -80,19 +104,24 @@ class WorkflowInstance(Base):
 
 class AgentRun(Base):
     __tablename__ = "agent_runs"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_agent_runs_store_created", "store_id", "created_at"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
-    agent_type = Column(String(64), nullable=False)  # analyzer, web_operator, mobile_operator, reporter
-    status = Column(String(16), default=AgentStatus.PENDING.value)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    agent_type = Column(
+        String(64), nullable=False
+    )  # analyzer, web_operator, mobile_operator, reporter
+    status = Column(String(16), default=AgentStatus.PENDING.value, index=True)
     state_at_run = Column(String(32), nullable=True)
     input_data = Column(JSON, default=dict)
     output_data = Column(JSON, default=dict)
     error_msg = Column(Text, nullable=True)
     retry_count = Column(Integer, default=0)
     duration_ms = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_at = Column(DateTime, default=datetime.now(UTC), index=True)
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 
     store = relationship("Store", back_populates="agent_runs")
@@ -100,46 +129,59 @@ class AgentRun(Base):
 
 class EventLog(Base):
     __tablename__ = "event_logs"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_event_logs_store_created", "store_id", "created_at"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
-    event_type = Column(String(64), nullable=False)  # state_change, agent_start, agent_end, error, manual_takeover
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    event_type = Column(
+        String(64), nullable=False, index=True
+    )  # state_change, agent_start, agent_end, error, manual_takeover
     from_state = Column(String(32), nullable=True)
     to_state = Column(String(32), nullable=True)
     agent_type = Column(String(64), nullable=True)
     message = Column(Text)
     extra_data = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_at = Column(DateTime, default=datetime.now(UTC), index=True)
 
     store = relationship("Store", back_populates="event_logs")
 
 
 class Alert(Base):
     __tablename__ = "alerts"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_alerts_store_created", "store_id", "created_at"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
-    alert_type = Column(String(64), nullable=False)  # agent_failure, consecutive_failure, manual_required
-    severity = Column(String(16), default="warning")  # info, warning, critical
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    alert_type = Column(
+        String(64), nullable=False
+    )  # agent_failure, consecutive_failure, manual_required
+    severity = Column(String(16), default="warning", index=True)  # info, warning, critical
     message = Column(Text)
     extra_data = Column(JSON, default=dict)
-    acknowledged = Column(Integer, default=0)  # 0 = false, 1 = true
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    acknowledged = Column(Integer, default=0, index=True)  # 0 = false, 1 = true
+    created_at = Column(DateTime, default=datetime.now(UTC), index=True)
 
     store = relationship("Store", back_populates="alerts")
 
 
 class Report(Base):
     __tablename__ = "reports"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_reports_store_created", "store_id", "created_at"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
-    report_type = Column(String(32), nullable=False)  # daily, weekly
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    report_type = Column(String(32), nullable=False, index=True)  # daily, weekly
     content_md = Column(Text, nullable=True)
     content_json = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_at = Column(DateTime, default=datetime.now(UTC), index=True)
 
     store = relationship("Store", back_populates="reports")

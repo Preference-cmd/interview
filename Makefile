@@ -1,5 +1,5 @@
 .PHONY: help
-.PHONY: backend-install backend-dev backend-test backend-run backend-clean
+.PHONY: backend-install backend-dev backend-test backend-run backend-clean backend-lint backend-fmt
 .PHONY: frontend-install frontend-dev frontend-build
 .PHONY: test clean
 
@@ -11,6 +11,8 @@ help:
 	@echo "  make backend-dev        Run backend in development mode (port 8000)"
 	@echo "  make backend-test       Run backend tests"
 	@echo "  make backend-run        Run backend (production)"
+	@echo "  make backend-lint       Lint backend with ruff"
+	@echo "  make backend-fmt        Format backend with ruff"
 	@echo "  make backend-clean      Clean backend artifacts"
 	@echo ""
 	@echo "Frontend (Next.js):"
@@ -34,6 +36,12 @@ backend-test:
 
 backend-run:
 	cd backend && uv run uvicorn main:app --host 0.0.0.0 --port 8000
+
+backend-lint:
+	cd backend && uv run ruff check .
+
+backend-fmt:
+	cd backend && uv run ruff format .
 
 backend-clean:
 	find backend -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

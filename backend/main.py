@@ -2,25 +2,25 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.database import engine, get_db, init_db, AsyncSessionLocal
-from backend.models import Store, WorkflowInstance, AgentRun, EventLog, Alert, Report, WorkflowState
-from backend.schemas import (
-    StoreImportRequest,
-    StoreImportItem,
-    StoreResponse,
-    WorkflowStatusResponse,
-    AgentRunResponse,
-    TimelineResponse,
-    EventLogResponse,
-    DashboardSummaryResponse,
-)
+from backend.database import AsyncSessionLocal, async_engine, get_db
+from backend.logging_config import get_logger, setup_logging
+from backend.migrations import MigrationRunner
+from backend.models import AgentRun, Alert, EventLog, Store, WorkflowInstance, WorkflowState
 from backend.orchestrator.engine import WorkflowEngine
-from backend.logging_config import setup_logging, get_logger
+from backend.schemas import (
+    AgentRunResponse,
+    DashboardSummaryResponse,
+    EventLogResponse,
+    StoreImportRequest,
+    StoreResponse,
+    TimelineResponse,
+    WorkflowStatusResponse,
+)
 
 setup_logging()
 logger = get_logger(__name__)
@@ -28,9 +28,13 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing database...")
-    init_db()
-    logger.info("Database initialized")
+    logger.info("Running pending migrations...")
+    runner = MigrationRunner(async_engine)
+    applied = await runner.run_pending()
+    if applied:
+        logger.info(f"Migrations applied: {applied}")
+    else:
+        logger.info("No pending migrations")
     yield
     logger.info("Shutting down...")
 
@@ -97,7 +101,9 @@ async def get_store(store_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/stores/{store_id}/start")
-async def start_workflow(store_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def start_workflow(
+    store_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """Start the workflow for a store."""
     store = db.get(Store, store_id)
     if not store:
@@ -114,7 +120,7 @@ async def start_workflow(store_id: int, background_tasks: BackgroundTasks, db: S
                 logger.error(f"Workflow error for store {store_id}: {e}", exc_info=True)
                 await session.rollback()
 
-    asyncio.create_task(run())
+    asyncio.create_task(run())  # noqa: RUF006
     return {"message": "Workflow started", "store_id": store_id}
 
 
@@ -230,9 +236,7 @@ async def dashboard_summary(db: Session = Depends(get_db)):
         state_dist[wf.current_state] = state_dist.get(wf.current_state, 0) + 1
 
     # Anomaly count (non-acknowledged alerts)
-    anomaly_count = db.execute(
-        select(func.count(Alert.id)).where(Alert.acknowledged == 0)
-    ).scalar()
+    anomaly_count = db.execute(select(func.count(Alert.id)).where(Alert.acknowledged == 0)).scalar()
 
     # Manual review queue
     manual_review_stores = db.execute(

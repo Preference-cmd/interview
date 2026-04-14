@@ -1,5 +1,6 @@
-from backend.agents.base import BaseAgent, AgentStatus, AgentResult
 import random
+
+from backend.agents.base import AgentResult, AgentStatus, BaseAgent
 
 
 class AnalyzerAgent(BaseAgent):
@@ -23,11 +24,7 @@ class AnalyzerAgent(BaseAgent):
         ros = store.get("ros_health", "low")
         ros_score = {"low": 30, "medium": 60, "high": 90}.get(ros, 50)
 
-        health_score = int(
-            rating * 20 * 0.3
-            + review_rate * 100 * 0.2
-            + ros_score * 0.5
-        )
+        health_score = int(rating * 20 * 0.3 + review_rate * 100 * 0.2 + ros_score * 0.5)
         health_score = min(100, max(0, health_score))
 
         # Generate issue severity

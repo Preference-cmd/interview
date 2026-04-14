@@ -1,17 +1,15 @@
-import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
+from backend.models import Alert, EventLog
 from backend.orchestrator.event_emitter import EventEmitter
 
 
-@pytest.mark.asyncio
-class TestLogEvent:
-    async def test_creates_eventlog_with_all_fields(self):
-        mock_db = AsyncMock()
+class TestEmitEvent:
+    def test_adds_event_to_session(self):
+        mock_db = MagicMock()
 
-        emitter = EventEmitter()
-        await emitter.log_event(
-            db=mock_db,
+        emitter = EventEmitter(mock_db)
+        event = EventLog(
             store_id=1,
             event_type="agent_run",
             from_state="DIAGNOSIS",
@@ -21,81 +19,49 @@ class TestLogEvent:
             extra_data={"run_id": 5, "error": None},
         )
 
-        mock_db.add.assert_called_once()
-        added_event = mock_db.add.call_args[0][0]
-        assert added_event.store_id == 1
-        assert added_event.event_type == "agent_run"
-        assert added_event.from_state == "DIAGNOSIS"
-        assert added_event.to_state == "DIAGNOSIS"
-        assert added_event.agent_type == "analyzer"
-        assert added_event.message == "analyzer success (150ms)"
-        assert added_event.extra_data == {"run_id": 5, "error": None}
+        emitter.emit_event(event)
 
-    async def test_creates_eventlog_with_minimal_fields(self):
-        mock_db = AsyncMock()
+        mock_db.add.assert_called_once_with(event)
 
-        emitter = EventEmitter()
-        await emitter.log_event(
-            db=mock_db,
-            store_id=2,
-            event_type="workflow_created",
-        )
+    def test_adds_minimal_event(self):
+        mock_db = MagicMock()
 
-        mock_db.add.assert_called_once()
-        added_event = mock_db.add.call_args[0][0]
-        assert added_event.store_id == 2
-        assert added_event.event_type == "workflow_created"
-        assert added_event.from_state is None
-        assert added_event.agent_type is None
+        emitter = EventEmitter(mock_db)
+        event = EventLog(store_id=2, event_type="workflow_created")
 
-    async def test_defaults_extra_data_to_empty_dict(self):
-        mock_db = AsyncMock()
+        emitter.emit_event(event)
 
-        emitter = EventEmitter()
-        await emitter.log_event(
-            db=mock_db,
-            store_id=3,
-            event_type="state_change",
-        )
-
-        added_event = mock_db.add.call_args[0][0]
-        assert added_event.extra_data == {}
+        mock_db.add.assert_called_once_with(event)
 
 
-@pytest.mark.asyncio
-class TestCreateAlert:
-    async def test_creates_alert_with_all_fields(self):
-        mock_db = AsyncMock()
+class TestEmitAlert:
+    def test_adds_alert_to_session(self):
+        mock_db = MagicMock()
 
-        emitter = EventEmitter()
-        await emitter.create_alert(
-            db=mock_db,
+        emitter = EventEmitter(mock_db)
+        alert = Alert(
             store_id=1,
             alert_type="consecutive_failure",
             severity="critical",
-            message="连续3次失败，触发人工接管",
+            message="连续3次失败",
             extra_data={"failures": 3},
         )
 
-        mock_db.add.assert_called_once()
-        added_alert = mock_db.add.call_args[0][0]
-        assert added_alert.store_id == 1
-        assert added_alert.alert_type == "consecutive_failure"
-        assert added_alert.severity == "critical"
-        assert added_alert.message == "连续3次失败，触发人工接管"
-        assert added_alert.extra_data == {"failures": 3}
+        emitter.emit_alert(alert)
 
-    async def test_defaults_extra_data_to_empty_dict(self):
-        mock_db = AsyncMock()
+        mock_db.add.assert_called_once_with(alert)
 
-        emitter = EventEmitter()
-        await emitter.create_alert(
-            db=mock_db,
+    def test_adds_warning_alert(self):
+        mock_db = MagicMock()
+
+        emitter = EventEmitter(mock_db)
+        alert = Alert(
             store_id=2,
             alert_type="manual_takeover",
             severity="warning",
             message="人工接管已触发",
         )
 
-        added_alert = mock_db.add.call_args[0][0]
-        assert added_alert.extra_data == {}
+        emitter.emit_alert(alert)
+
+        mock_db.add.assert_called_once_with(alert)

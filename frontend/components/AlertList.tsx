@@ -18,10 +18,10 @@ function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
   const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
-  if (diff < 60) return `${diff}秒前`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-  return d.toLocaleDateString("zh-CN");
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString("en-US");
 }
 
 export function AlertList({ alerts, onAcknowledge }: AlertListProps) {
@@ -29,7 +29,7 @@ export function AlertList({ alerts, onAcknowledge }: AlertListProps) {
     return (
       <div className="p-8 text-center text-stone-gray flex flex-col items-center">
         <CheckCircle className="w-8 h-8 mb-2 opacity-40" />
-        <p>暂无告警</p>
+        <p>No alerts found</p>
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function AlertList({ alerts, onAcknowledge }: AlertListProps) {
               onClick={() => onAcknowledge(alert.id)}
               className="shrink-0 px-2.5 py-1 rounded-subtly-rounded border border-border-cream bg-white text-xs text-charcoal-warm hover:bg-warm-sand transition-colors shadow-sm"
             >
-              确认
+              Acknowledge
             </button>
           )}
         </div>

@@ -44,7 +44,7 @@ export function StoreList({ stores }: StoreListProps) {
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr className="border-b-2 border-border-cream bg-parchment/30">
-            {["门店名称", "城市", "品类", "评分", "ROS健康", "状态", "最近失败", "操作"].map(
+            {["Store Name", "City", "Category", "Rating", "ROS Health", "Status", "Recent Failures", "Actions"].map(
               (h) => (
                 <th
                   key={h}
@@ -95,7 +95,7 @@ export function StoreList({ stores }: StoreListProps) {
                         : "bg-red-100 text-red-700"
                     )}
                   >
-                    {store.ros_health === "high" ? "健康" : store.ros_health === "medium" ? "预警" : "异常"}
+                    {store.ros_health === "high" ? "Healthy" : store.ros_health === "medium" ? "Warning" : "Critical"}
                   </span>
                 </td>
                 <td className="py-4 px-4">
@@ -108,7 +108,7 @@ export function StoreList({ stores }: StoreListProps) {
                 <td className="py-4 px-4 text-center">
                   {status && status.consecutive_failures > 0 ? (
                     <span className="text-error-crimson font-anthropic-mono text-xs font-medium">
-                      {status.consecutive_failures} 次
+                      {status.consecutive_failures} times
                     </span>
                   ) : (
                     <span className="text-stone-gray opacity-40">—</span>
@@ -130,7 +130,7 @@ export function StoreList({ stores }: StoreListProps) {
                     ) : (
                       <Play className="size-3 fill-current" />
                     )}
-                    {isLoading ? "启动中" : "启动"}
+                    {isLoading ? "Starting" : "Start"}
                   </button>
                 </td>
               </tr>

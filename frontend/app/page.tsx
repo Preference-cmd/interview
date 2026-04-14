@@ -78,11 +78,11 @@ export default function DashboardPage() {
 
         <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
           {[
-            { key: "dashboard", label: "监控台", icon: LayoutDashboard },
-            { key: "stores", label: "门店列表", icon: StoreIcon },
+            { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+            { key: "stores", label: "Store List", icon: StoreIcon },
             {
               key: "alerts",
-              label: `告警${unreadAlerts > 0 ? ` (${unreadAlerts})` : ""}`,
+              label: `Alerts${unreadAlerts > 0 ? ` (${unreadAlerts})` : ""}`,
               icon: Bell,
             },
           ].map(({ key, label, icon: Icon }) => (
@@ -105,7 +105,7 @@ export default function DashboardPage() {
         <div className="p-6 border-t border-border-cream flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-stone-gray font-anthropic-mono">
-              上次更新: {lastRefresh.toLocaleTimeString("zh-CN")}
+              Last updated: {lastRefresh.toLocaleTimeString("en-US")}
             </span>
             <button
               onClick={loadData}
@@ -125,15 +125,15 @@ export default function DashboardPage() {
         <div className="max-w-[1200px] mx-auto p-8 md:p-12 lg:p-16">
           <header className="mb-12">
             <h1 className="font-anthropic-serif text-[52px] font-medium text-anthropic-near-black leading-tight tracking-normal">
-              {tab === "dashboard" && "运营监控台"}
-              {tab === "stores" && "门店管理"}
-              {tab === "alerts" && "系统告警"}
+              {tab === "dashboard" && "Ops Dashboard"}
+              {tab === "stores" && "Store Management"}
+              {tab === "alerts" && "System Alerts"}
             </h1>
           </header>
 
           {loading && !summary && (
             <div className="py-20 text-center text-stone-gray font-anthropic-serif text-lg">
-              正在加载运营数据...
+              Loading operational data...
             </div>
           )}
 
@@ -145,38 +145,38 @@ export default function DashboardPage() {
                   {/* KPI Cards */}
                   <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <KPICard
-                      label="门店总数"
+                      label="Total Stores"
                       value={summary.total_stores.toString()}
                     />
                     <KPICard
-                      label="异常告警"
+                      label="Anomalies"
                       value={summary.anomaly_count.toString()}
                       highlight={summary.anomaly_count > 0 ? "error" : "success"}
                     />
                     <KPICard
-                      label="人工接管队列"
+                      label="Manual Review"
                       value={summary.manual_review_queue.length.toString()}
                       highlight="warning"
                     />
                     <KPICard
-                      label="最近 Agent 执行"
+                      label="Recent Agent Runs"
                       value={summary.recent_agent_runs.length.toString()}
                     />
                   </section>
 
                   {/* Charts Row */}
                   <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card title="状态分布">
+                    <Card title="State Distribution">
                       <StatePieChart data={summary} />
                     </Card>
-                    <Card title="人工接管队列积压">
+                    <Card title="Review Backlog">
                       <ManualReviewBarChart data={summary} />
                     </Card>
                   </section>
 
                   <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 flex flex-col gap-6">
-                      <Card title="最近 Agent 执行">
+                      <Card title="Recent Agent Activity">
                         <RecentRunsChart data={summary} />
                         <div className="mt-6">
                           <RecentRunsTable runs={summary.recent_agent_runs.slice(0, 5)} />
@@ -184,7 +184,7 @@ export default function DashboardPage() {
                       </Card>
                     </div>
                     <div className="flex flex-col gap-6">
-                      <Card title="最新告警">
+                      <Card title="Latest Alerts">
                         <AlertList
                           alerts={summary.recent_alerts.slice(0, 5)}
                           onAcknowledge={handleAcknowledge}
@@ -262,14 +262,14 @@ function Card({
 
 function RecentRunsTable({ runs }: { runs: any[] }) {
   if (runs.length === 0) {
-    return <div className="text-stone-gray text-center py-8">暂无执行记录</div>;
+    return <div className="text-stone-gray text-center py-8">No execution history</div>;
   }
 
   const AGENT_LABELS: Record<string, string> = {
-    analyzer: "诊断",
-    web_operator: "后台",
-    mobile_operator: "移动端",
-    reporter: "报表",
+    analyzer: "Diagnosis",
+    web_operator: "Backend",
+    mobile_operator: "Mobile",
+    reporter: "Report",
   };
 
   return (
@@ -277,7 +277,7 @@ function RecentRunsTable({ runs }: { runs: any[] }) {
       <table className="w-full text-sm text-left">
         <thead>
           <tr className="border-b border-border-cream">
-            {["门店", "Agent", "状态", "耗时"].map((h) => (
+            {["Store", "Agent", "Status", "Duration"].map((h) => (
               <th
                 key={h}
                 className="py-3 px-2 text-stone-gray font-normal"
@@ -307,7 +307,7 @@ function RecentRunsTable({ runs }: { runs: any[] }) {
                     run.status === "running" && "text-terracotta"
                   )}
                 >
-                  {run.status === "success" ? "成功" : run.status === "failed" ? "失败" : "运行中"}
+                  {run.status === "success" ? "Success" : run.status === "failed" ? "Failed" : "Running"}
                 </span>
               </td>
               <td className="py-3 px-2 text-stone-gray font-anthropic-mono text-xs">

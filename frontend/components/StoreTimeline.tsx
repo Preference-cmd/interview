@@ -34,18 +34,18 @@ function EventIcon({ type, agentType }: { type: string; agentType?: string | nul
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  state_change: "状态变更",
-  agent_run: "Agent 执行",
-  workflow_created: "工作流创建",
-  manual_takeover: "人工接管",
-  report_generated: "报表生成",
+  state_change: "State Changed",
+  agent_run: "Agent Executed",
+  workflow_created: "Workflow Created",
+  manual_takeover: "Manual Review",
+  report_generated: "Report Generated",
 };
 
 export function StoreTimeline({ events }: StoreTimelineProps) {
   if (events.length === 0) {
     return (
       <div className="p-12 text-center text-stone-gray">
-        暂无事件记录
+        No event records found.
       </div>
     );
   }

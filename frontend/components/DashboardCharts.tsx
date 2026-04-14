@@ -39,7 +39,7 @@ export function StatePieChart({ data }: DashboardChartsProps) {
     }));
 
   if (chartData.length === 0) {
-    return <div className="text-stone-gray text-center py-12 italic">暂无分布数据</div>;
+    return <div className="text-stone-gray text-center py-12 italic">No distribution data available</div>;
   }
 
   return (
@@ -64,7 +64,7 @@ export function StatePieChart({ data }: DashboardChartsProps) {
           ))}
         </Pie>
         <Tooltip
-          formatter={(value: any, name: any) => [`${value} 家`, name]}
+          formatter={(value: any, name: any) => [`${value} Stores`, name]}
           contentStyle={{
             backgroundColor: "#faf9f5",
             borderRadius: "12px",
@@ -93,20 +93,20 @@ export function StatePieChart({ data }: DashboardChartsProps) {
 export function ManualReviewBarChart({ data }: DashboardChartsProps) {
   const queue = data.manual_review_queue;
   if (queue.length === 0) {
-    return <div className="text-stone-gray text-center py-16 italic">暂无积压队列</div>;
+    return <div className="text-stone-gray text-center py-16 italic">No review backlog</div>;
   }
 
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart
-        data={[{ name: "人工接管", count: queue.length }]}
+        data={[{ name: "Manual Review", count: queue.length }]}
         layout="vertical"
         margin={{ left: 0, right: 40, top: 20, bottom: 20 }}
       >
         <XAxis type="number" hide />
         <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#5e5d59' }} width={80} />
         <Tooltip
-          formatter={(value: any) => [`${value} 家门店`, "待处理"]}
+          formatter={(value: any) => [`${value} Stores`, "Pending"]}
           contentStyle={{
             backgroundColor: "#faf9f5",
             borderRadius: "12px",
@@ -124,7 +124,7 @@ export function ManualReviewBarChart({ data }: DashboardChartsProps) {
 export function RecentRunsChart({ data }: DashboardChartsProps) {
   const runs = data.recent_agent_runs.slice(0, 10).reverse();
   if (runs.length === 0) {
-    return <div className="text-stone-gray text-center py-16 italic">暂无运行记录</div>;
+    return <div className="text-stone-gray text-center py-16 italic">No execution history</div>;
   }
 
   const agentCounts: Record<string, number> = {};
@@ -152,7 +152,7 @@ export function RecentRunsChart({ data }: DashboardChartsProps) {
           tickLine={false}
         />
         <Tooltip
-          formatter={(value: any) => [`${value} 次`, "执行次数"]}
+          formatter={(value: any) => [`${value} Runs`, "Executions"]}
           cursor={{ fill: '#f5f4ed' }}
           contentStyle={{
             backgroundColor: "#faf9f5",

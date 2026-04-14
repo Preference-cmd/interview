@@ -80,10 +80,10 @@ export const STATE_COLORS: Record<string, string> = {
 };
 
 export const AGENT_LABELS: Record<string, string> = {
-  analyzer: "诊断 Agent",
-  web_operator: "后台操作 Agent",
-  mobile_operator: "移动端 Agent",
-  reporter: "报表 Agent",
+  analyzer: "Analyzer Agent",
+  web_operator: "Web Operator Agent",
+  mobile_operator: "Mobile Operator Agent",
+  reporter: "Reporter Agent",
 };
 
 export const AGENT_COLORS: Record<string, string> = {
@@ -94,11 +94,11 @@ export const AGENT_COLORS: Record<string, string> = {
 };
 
 export const STATE_LABELS: Record<string, string> = {
-  NEW_STORE: "新门店",
-  DIAGNOSIS: "诊断中",
-  FOUNDATION: "基础建设",
-  DAILY_OPS: "日常运营",
-  WEEKLY_REPORT: "周报生成",
-  DONE: "已完成",
-  MANUAL_REVIEW: "人工接管",
+  NEW_STORE: "New Store",
+  DIAGNOSIS: "Diagnosing",
+  FOUNDATION: "Infrastructure",
+  DAILY_OPS: "Daily Ops",
+  WEEKLY_REPORT: "Weekly Report",
+  DONE: "Completed",
+  MANUAL_REVIEW: "Manual Review",
 };

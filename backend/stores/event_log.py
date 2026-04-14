@@ -10,9 +10,7 @@ class EventLogStore:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_by_store(
-        self, store_id: int, limit: int = 100
-    ) -> list[EventLog]:
+    async def list_by_store(self, store_id: int, limit: int = 100) -> list[EventLog]:
         stmt = (
             select(EventLog)
             .where(EventLog.store_id == store_id)

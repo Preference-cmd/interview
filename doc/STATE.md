@@ -48,22 +48,13 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 - **0 个组件添加**，当前所有组件均为手写
 
 ### 进行中
-| Feature | Spec/Plan | 状态 |
-|---------|------|------|
-| **状态自动流转** | — | **需求已记录** |
+（无）
 
 ### 已完成 (2026-04-14)
 | Feature | Spec/Plan | 状态 |
 |---------|------|------|
-| Store Detail Modal | `superpowers/plans/2026-04-14-store-detail-modal-plan.md` | **实现完成** |
-
-### 待实现功能
-
-| 功能 | 说明 | 优先级 |
-|------|------|--------|
-| **状态自动流转（带延迟）** | 工作流启动后，每个状态自动经过一定延迟后进入下一个状态，无需手动调用 `/start` | P1 |
-
-**需求详情：** 当前 `POST /stores/{id}/start` 每次只处理当前状态的一个 step，处理完即停止。需要改为：启动后自动循环执行所有状态，每个状态之间有可配置的延迟（如 2-5 秒），直到 `DONE` 或 `MANUAL_REVIEW` 才停止。可考虑使用 `asyncio.create_task()` 在后台运行，参考决策记录中 2026-04-14 的方案。
+| Store Detail Modal | `superpowers/plans/2026-04-14-store-detail-modal-plan.md` | 实现完成 |
+| **状态自动流转（带延迟）** | `superpowers/plans/2026-04-14-auto-state-transition-plan.md` | 实现完成 |
 
 ### 技术债务
 ```

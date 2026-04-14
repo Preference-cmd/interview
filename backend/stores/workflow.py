@@ -16,9 +16,7 @@ class WorkflowStore:
         self._session = session
 
     async def get_by_store_id(self, store_id: int) -> WorkflowInstance | None:
-        stmt = select(WorkflowInstance).where(
-            WorkflowInstance.store_id == store_id
-        )
+        stmt = select(WorkflowInstance).where(WorkflowInstance.store_id == store_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

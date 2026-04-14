@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,14 +15,14 @@ import { FailureLogCard } from "@/components/FailureLogCard";
 import { VerticalTimeline } from "@/components/VerticalTimeline";
 import {
   getStore,
-  getStatus,
-  getTimeline,
+  getStatusOptional,
+  getTimelineOptional,
   startWorkflow,
   manualTakeover,
 } from "@/lib/api";
 import type { Store, WorkflowStatus, EventLog } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { X, Play, RefreshCw, UserCog } from "lucide-react";
+import { Play, RefreshCw, UserCog } from "lucide-react";
 
 interface StoreDetailModalProps {
   storeId: number | null;
@@ -58,15 +57,22 @@ export function StoreDetailModal({
     async function load() {
       if (!storeId) return;
       try {
-        const [s, st, ev] = await Promise.all([
-          getStore(storeId),
-          getStatus(storeId),
-          getTimeline(storeId),
-        ]);
+        // getStore must succeed; status/timeline may be null if no workflow yet
+        const s = await getStore(storeId);
         if (!cancelled) {
           setStore(s);
-          setStatus(st);
-          setEvents(ev.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+          const [st, ev] = await Promise.all([
+            getStatusOptional(storeId),
+            getTimelineOptional(storeId),
+          ]);
+          setStatus(st ?? null);
+          setEvents(
+            (ev ?? []).sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+            )
+          );
           setLoadState("idle");
         }
       } catch {
@@ -101,8 +107,8 @@ export function StoreDetailModal({
     try {
       await manualTakeover(storeId);
       // reload status
-      const st = await getStatus(storeId);
-      setStatus(st);
+      const st = await getStatusOptional(storeId);
+      setStatus(st ?? null);
     } catch {
       // keep modal open on error
     } finally {
@@ -140,11 +146,21 @@ export function StoreDetailModal({
                 const id = storeId;
                 if (id) {
                   setLoadState("loading");
-                  Promise.all([getStore(id), getStatus(id), getTimeline(id)])
-                    .then(([s, st, ev]) => {
+                  getStore(id)
+                    .then(async (s) => {
+                      const [st, ev] = await Promise.all([
+                        getStatusOptional(id),
+                        getTimelineOptional(id),
+                      ]);
                       setStore(s);
-                      setStatus(st);
-                      setEvents(ev.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+                      setStatus(st ?? null);
+                      setEvents(
+                        (ev ?? []).sort(
+                          (a: EventLog, b: EventLog) =>
+                            new Date(b.created_at).getTime() -
+                            new Date(a.created_at).getTime()
+                        )
+                      );
                       setLoadState("idle");
                     })
                     .catch(() => setLoadState("error"));
@@ -156,7 +172,11 @@ export function StoreDetailModal({
           </div>
         ) : store ? (
           <>
-            <DialogHeader className="p-6 pb-4 border-b border-border-cream shrink-0">
+            {/* Screen-reader accessible title (required by Radix) */}
+            <DialogTitle className="sr-only">
+              {store.name}
+            </DialogTitle>
+            <div className="p-6 pb-4 border-b border-border-cream shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
                   {/* Avatar */}
@@ -215,7 +235,7 @@ export function StoreDetailModal({
                   )}
                 </div>
               </div>
-            </DialogHeader>
+            </div>
 
             {/* BODY: Left + Right columns */}
             <div className="flex flex-1 min-h-0 overflow-hidden">

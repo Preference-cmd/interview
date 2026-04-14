@@ -11,9 +11,7 @@ class StoreService:
         self._session = session
         self._store = store_store
 
-    async def import_stores(
-        self, request: StoreImportRequest
-    ) -> list[StoreResponse]:
+    async def import_stores(self, request: StoreImportRequest) -> list[StoreResponse]:
         stores = await self._store.import_or_update(request.stores)
         await self._session.commit()
         for store in stores:

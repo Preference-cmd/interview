@@ -21,7 +21,9 @@ export function StoreList({ stores, onSelectStore }: StoreListProps) {
         .then((status) => {
           setStoreStatuses((prev) => ({ ...prev, [store.id]: status }));
         })
-        .catch(() => {});
+        .catch(() => {
+          // Store has no workflow yet — skip silently
+        });
     });
   }, [stores]);
 

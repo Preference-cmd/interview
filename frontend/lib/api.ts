@@ -12,6 +12,15 @@ async function fetchAPI<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function fetchAPIOptional<T>(path: string): Promise<T | null> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
+  return res.json();
+}
+
 export async function importStores(stores: any[]) {
   const res = await fetch(`${API_BASE}/stores/import`, {
     method: "POST",
@@ -42,8 +51,18 @@ export async function getStatus(storeId: number): Promise<WorkflowStatus> {
   return fetchAPI<WorkflowStatus>(`/stores/${storeId}/status`);
 }
 
+/** Returns null if the store has no workflow yet (404). */
+export async function getStatusOptional(storeId: number): Promise<WorkflowStatus | null> {
+  return fetchAPIOptional<WorkflowStatus>(`/stores/${storeId}/status`);
+}
+
 export async function getTimeline(storeId: number): Promise<EventLog[]> {
   return fetchAPI<EventLog[]>(`/stores/${storeId}/timeline`);
+}
+
+/** Returns null if the store has no timeline yet (404). */
+export async function getTimelineOptional(storeId: number): Promise<EventLog[] | null> {
+  return fetchAPIOptional<EventLog[]>(`/stores/${storeId}/timeline`);
 }
 
 export async function manualTakeover(storeId: number) {

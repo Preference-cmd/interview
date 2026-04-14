@@ -1,5 +1,5 @@
 .PHONY: help
-.PHONY: backend-install backend-dev backend-test backend-run backend-clean backend-lint backend-fmt backend-migrate
+.PHONY: backend-install backend-dev backend-test backend-run backend-clean backend-lint backend-fmt backend-migrate backend-seed
 .PHONY: frontend-install frontend-dev frontend-build
 .PHONY: test clean
 
@@ -14,6 +14,7 @@ help:
 	@echo "  make backend-lint       Lint backend with ruff"
 	@echo "  make backend-fmt        Format backend with ruff"
 	@echo "  make backend-migrate   Run pending SQL migrations"
+	@echo "  make backend-seed       Seed database with mock data (requires running server)"
 	@echo "  make backend-clean      Clean backend artifacts"
 	@echo ""
 	@echo "Frontend (Next.js):"
@@ -46,6 +47,9 @@ backend-fmt:
 
 backend-migrate:
 	PYTHONPATH=/Users/pref2rence/project/lls/multi-agent-ops ./backend/.venv/bin/python -c "from backend.migrations.__main__ import main; import asyncio; asyncio.run(main())"
+
+backend-seed:
+	cd backend && uv run python seed.py
 
 backend-clean:
 	find backend -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

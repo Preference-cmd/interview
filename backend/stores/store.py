@@ -16,9 +16,7 @@ class StoreStore:
     async def get_by_id(self, store_id: int) -> Store | None:
         return await self._session.get(Store, store_id)
 
-    async def import_or_update(
-        self, items: list[StoreImportItem]
-    ) -> list[Store]:
+    async def import_or_update(self, items: list[StoreImportItem]) -> list[Store]:
         imported: list[Store] = []
         for item in items:
             store = await self.get_by_store_id(item.store_id)

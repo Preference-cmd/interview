@@ -65,33 +65,25 @@ stores/     → Data access layer (DB persistence)
 - `Engine` holds no `db` session — injected components handle all persistence
 - Agents are injected via `AgentRunner` — engine does not instantiate agents directly
 
-### Directory Structure
+### Directory Structure (abbreviated)
 ```
 backend/
-├── agents/            # Agent implementations (AnalyzerAgent, WebOperatorAgent, etc.)
-├── database.py        # SQLAlchemy async session setup
-├── main.py            # FastAPI app entry point
-├── models/            # SQLAlchemy models (Store, WorkflowInstance, AgentRun, etc.)
-├── orchestrator/      # Workflow orchestration
-│   ├── engine.py          # WorkflowEngine — orchestration entry point
-│   ├── state_machine.py  # Pure stateless state transition logic
-│   ├── event_emitter.py   # Thin EventLog/Alert persistence wrapper
-│   └── agent_runner.py    # Agent dispatch with retry and context updates
-├── routes/            # FastAPI route handlers
-├── schemas.py         # Pydantic request/response schemas
-├── service/          # Business logic services (WorkflowService, etc.)
-└── stores/           # Data access layer (WorkflowStore, AgentRunStore, etc.)
+├── agents/           # AnalyzerAgent, WebOperatorAgent, MobileOperatorAgent, ReporterAgent
+├── models/           # SQLAlchemy models (Store, WorkflowInstance, AgentRun, EventLog, Alert, Report)
+├── orchestrator/     # WorkflowEngine, StateMachine, EventEmitter, AgentRunner
+├── routes/           # FastAPI route handlers
+├── schemas/          # Pydantic request/response schemas
+├── service/          # WorkflowService, StoreService, DashboardService, AlertService
+├── stores/           # StoreStore, WorkflowStore, AgentRunStore, EventLogStore, AlertStore, ReportStore
+└── migrations/      # SQL migration files
 frontend/
-├── app/
-│   ├── page.tsx       # Dashboard
-│   ├── layout.tsx     # Root layout
-│   └── stores/[id]/page.tsx   # Store detail (see doc/README.md)
-├── components/        # UI components
-└── lib/               # API client, types
-tests/                 # pytest (conftest.py, test_*.py)
-mock_data/             # JSON fixtures
-Makefile
+├── app/              # Next.js App Router pages
+├── components/       # UI components
+└── lib/              # API client, types, utils
+tests/                # pytest (conftest.py, test_*.py)
+doc/                  # Design specs (doc/superpowers/specs/) and plans (doc/superpowers/plans/)
 ```
+详细结构见 `doc/STATE.md`。
 
 ## Workflow Standards
 
@@ -109,6 +101,7 @@ All frontend implementation follows `frontend/DESIGN.md` (color palette, typogra
 - The `backend-test` Makefile target runs from `backend/` so `pyproject.toml`'s `pythonpath` is respected.
 - SQLite database file is `backend/multi_agent_ops.db` (gitignored).
 - The `doc/` directory is **not gitignored** — contains versioned design specs and plans.
+- **After any code change, related documentation must be updated.** Update `doc/STATE.md` for backend state, design specs, and code review items. Keep design docs (`doc/superpowers/specs/`) and plans (`doc/superpowers/plans/`) in sync with implemented changes.
 
 ## Important Constraints
 

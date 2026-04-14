@@ -48,6 +48,9 @@ frontend/node_modules/
 # Documentation
 # doc/specs/ and doc/plan/ are versioned (design specs and plans)
 
+# Superconductor brainstorm sessions
+.superpowers/
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts

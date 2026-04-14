@@ -44,3 +44,4 @@ doc/
 |---------|------|------|
 | Store Detail Page | `superpowers/specs/STORE-DETAIL-DESIGN.md` | `superpowers/plans/` |
 | Backend async + modularization | — | `superpowers/plans/2026-04-14-*.md` (Plans 1-3) |
+| Backend 三层架构 | — | `superpowers/plans/2026-04-16-routes-service-stores.md` |

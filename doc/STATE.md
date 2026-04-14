@@ -1,6 +1,6 @@
 # 开发状态追踪
 
-> 最后更新：2026-04-15
+> 最后更新：2026-04-16
 
 ## 决策记录
 
@@ -12,6 +12,7 @@
 | 2026-04-14 | Frontend 设计规范存放于 `doc/specs/` | 与源码分离，便于独立演进 |
 | 2026-04-14 | Backend: SQL migration 系统替代 `create_all` | 支持生产环境 schema 演进 |
 | 2026-04-14 | Backend: 全面 async 化 + 模块化拆分 | 统一 sync/async 混乱现状 |
+| 2026-04-15 | Backend: routes → service → stores 三层架构 | 路由薄化、业务逻辑下沉、数据访问封装 |
 
 ---
 
@@ -57,12 +58,12 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 
 ### 测试
 ```
-16 passed, 0 warnings
-- 6 state transition tests
-- 5 workflow engine tests (async)
-- 2 retry logic tests
-- 2 manual takeover tests (async)
-- 1 reporter idempotency test
+42 passed, 0 errors
+- 7 agent_runner tests
+- 4 event_emitter tests
+- 9 workflow_engine tests
+- 18 state_machine tests
+- 4 other tests
 ```
 
 ### 新目录结构
@@ -88,15 +89,27 @@ backend/
 │   ├── workflow.py            # WorkflowStatusResponse, DashboardSummaryResponse
 │   ├── agent.py               # AgentRunResponse
 │   └── timeline.py            # EventLogResponse, TimelineResponse
-├── routes/
-│   ├── __init__.py            # Re-exports all routers
+├── routes/                    # HTTP 层 — 仅做参数提取和 response_model
+│   ├── __init__.py
 │   ├── stores.py              # /stores/import, /stores (GET)
-│   ├── workflows.py           # /stores/{id}/* (all workflow routes)
+│   ├── workflows.py           # /stores/{id}/* (detail/start/status/timeline/manual-takeover)
 │   ├── dashboard.py           # /dashboard/summary
 │   └── alerts.py              # /alerts, /alerts/{id}/acknowledge
-├── agents/                    # 4 mock agents (analyzer, web_operator, mobile_operator, reporter)
-├── orchestrator/
-│   └── engine.py              # WorkflowEngine — fully async
+├── service/                   # 服务层 — 业务编排 + 事务边界
+│   ├── __init__.py
+│   ├── store.py               # StoreService
+│   ├── workflow.py            # WorkflowService
+│   ├── dashboard.py           # DashboardService
+│   └── alert.py               # AlertService
+├── stores/                    # 数据访问层 — SQL 查询封装
+│   ├── __init__.py
+│   ├── store.py               # StoreStore
+│   ├── workflow.py            # WorkflowStore
+│   ├── alert.py               # AlertStore
+│   ├── agent_run.py           # AgentRunStore
+│   └── event_log.py           # EventLogStore
+├── orchestrator/              # 工作流编排（StateMachine + EventEmitter + AgentRunner + WorkflowEngine）
+├── agents/                    # 4 mock agents
 ├── migrations/
 │   ├── __init__.py
 │   ├── runner.py              # MigrationRunner

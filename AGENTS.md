@@ -19,8 +19,10 @@ A **multi-agent operations system** for 本地生活 (local life services) merch
 # Backend
 cd backend && make backend-install    # install deps (uv sync)
 make backend-dev                      # run dev server (port 8000)
-make backend-test                    # run tests
-make backend-run                    # run production
+make backend-test                    # run tests (pytest + pytest-asyncio)
+make backend-lint                     # run ruff checks
+make backend-fmt                     # run ruff format
+make backend-check                   # test + lint + format (full check)
 
 # Frontend
 make frontend-install               # pnpm install
@@ -29,6 +31,15 @@ make frontend-build                  # pnpm run build
 ```
 
 Note: Always run `make backend-test` (not `cd backend && pytest`) because the test runner depends on `pyproject.toml`'s `pythonpath` setting.
+
+## Backend Quality Standards
+
+Backend code must pass **both tests and ruff checks** before consider complete:
+- **Tests**: 单元测试 + 集成测试 via `make backend-test`
+- **Lint**: ruff 检查 via `make backend-lint`
+- **Format**: ruff format via `make backend-fmt`
+
+完整检查用 `make backend-check`（test + lint + format 全部通过才算完成）。
 
 ## Architecture
 

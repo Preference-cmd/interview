@@ -1,7 +1,9 @@
 import pytest
+import pytest_asyncio
 import asyncio
 from datetime import datetime, UTC
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.models import (
@@ -27,10 +29,27 @@ def engine_sqlite():
 
 @pytest.fixture
 def db_session(engine_sqlite):
+    """Sync session for state machine tests."""
     Session = sessionmaker(bind=engine_sqlite)
     session = Session()
     yield session
     session.close()
+
+
+@pytest_asyncio.fixture
+async def async_db_session():
+    """Async session for engine tests."""
+    async_eng = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    async with async_eng.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async_session = async_sessionmaker(async_eng, expire_on_commit=False)
+
+    async with async_session() as session:
+        yield session
+
+    await async_eng.dispose()
 
 
 @pytest.fixture
@@ -96,19 +115,46 @@ class TestStateTransitions:
 class TestWorkflowEngine:
     """Test the workflow orchestration engine."""
 
-    def test_get_or_create_workflow_creates_new(self, db_session, sample_store):
-        eng = WorkflowEngine(db_session)
-        wf = eng.get_or_create_workflow(sample_store)
+    @pytest.mark.asyncio
+    async def test_get_or_create_workflow_creates_new(self, async_db_session):
+        store = Store(
+            store_id="test_async_001",
+            name="测试麻辣烫店",
+            city="杭州",
+            category="小吃快餐",
+            rating=3.5,
+            monthly_orders=50,
+            gmv_last_7d=1500,
+            review_count=30,
+            review_reply_rate=0.3,
+            ros_health="medium",
+            competitor_avg_discount=0.75,
+        )
+        async_db_session.add(store)
+        await async_db_session.flush()
+
+        eng = WorkflowEngine(async_db_session)
+        wf = await eng.get_or_create_workflow(store)
 
         assert wf is not None
-        assert wf.store_id == sample_store.id
+        assert wf.store_id == store.id
         assert wf.current_state == WorkflowState.NEW_STORE.value
         assert wf.consecutive_failures == 0
 
-    def test_get_or_create_workflow_returns_existing(self, db_session, sample_store):
-        eng = WorkflowEngine(db_session)
-        wf1 = eng.get_or_create_workflow(sample_store)
-        wf2 = eng.get_or_create_workflow(sample_store)
+    @pytest.mark.asyncio
+    async def test_get_or_create_workflow_returns_existing(self, async_db_session):
+        store = Store(
+            store_id="test_async_002",
+            name="测试门店2",
+            city="上海",
+            category="餐饮",
+        )
+        async_db_session.add(store)
+        await async_db_session.flush()
+
+        eng = WorkflowEngine(async_db_session)
+        wf1 = await eng.get_or_create_workflow(store)
+        wf2 = await eng.get_or_create_workflow(store)
 
         assert wf1.id == wf2.id
 
@@ -199,33 +245,61 @@ class TestRetryLogic:
 class TestManualTakeover:
     """Test manual takeover functionality."""
 
-    def test_trigger_manual_takeover(self, db_session, sample_store):
-        eng = WorkflowEngine(db_session)
-        eng.get_or_create_workflow(sample_store)
+    @pytest.mark.asyncio
+    async def test_trigger_manual_takeover(self, async_db_session):
+        store = Store(
+            store_id="test_async_003",
+            name="测试门店3",
+            city="北京",
+            category="零售",
+        )
+        async_db_session.add(store)
+        await async_db_session.flush()
 
-        wf = eng.trigger_manual_takeover(sample_store)
+        eng = WorkflowEngine(async_db_session)
+        await eng.get_or_create_workflow(store)
+
+        wf = await eng.trigger_manual_takeover(store)
 
         assert wf.current_state == WorkflowState.MANUAL_REVIEW.value
         assert wf.consecutive_failures == 0
 
         # Verify event was logged
+        from sqlalchemy import select
         from backend.models import EventLog
-        events = db_session.query(EventLog).filter(
-            EventLog.store_id == sample_store.id,
-            EventLog.event_type == "manual_takeover",
-        ).all()
+        result = await async_db_session.execute(
+            select(EventLog).where(
+                EventLog.store_id == store.id,
+                EventLog.event_type == "manual_takeover",
+            )
+        )
+        events = list(result.scalars().all())
         assert len(events) == 1
 
-    def test_manual_takeover_creates_alert(self, db_session, sample_store):
-        eng = WorkflowEngine(db_session)
-        eng.get_or_create_workflow(sample_store)
+    @pytest.mark.asyncio
+    async def test_manual_takeover_creates_alert(self, async_db_session):
+        store = Store(
+            store_id="test_async_004",
+            name="测试门店4",
+            city="深圳",
+            category="餐饮",
+        )
+        async_db_session.add(store)
+        await async_db_session.flush()
 
-        eng.trigger_manual_takeover(sample_store)
+        eng = WorkflowEngine(async_db_session)
+        await eng.get_or_create_workflow(store)
 
-        alerts = db_session.query(Alert).filter(
-            Alert.store_id == sample_store.id,
-            Alert.alert_type == "manual_takeover",
-        ).all()
+        await eng.trigger_manual_takeover(store)
+
+        from sqlalchemy import select
+        result = await async_db_session.execute(
+            select(Alert).where(
+                Alert.store_id == store.id,
+                Alert.alert_type == "manual_takeover",
+            )
+        )
+        alerts = list(result.scalars().all())
         assert len(alerts) == 1
 
 

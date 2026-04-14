@@ -1,4 +1,5 @@
 """Run migrations standalone: python -m migrations"""
+
 import asyncio
 
 from backend.database import async_engine

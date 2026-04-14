@@ -25,6 +25,7 @@ class AgentResult:
     data: dict | None = None
     error: str | None = None
     duration_ms: int = 0
+    attempts: int = 1
 
 
 class BaseAgent(ABC):
@@ -61,6 +62,7 @@ class BaseAgent(ABC):
                     status=AgentStatus.FAILED,
                     error="Simulated random failure",
                     duration_ms=0,
+                    attempts=attempt + 1,
                 )
                 if attempt < max_retries - 1:
                     delay = base_delay * (2**attempt)
@@ -73,6 +75,7 @@ class BaseAgent(ABC):
                 result = await self.execute(context)
                 duration_ms = int((time.perf_counter() - start) * 1000)
                 result.duration_ms = duration_ms
+                result.attempts = attempt + 1
                 last_result = result
 
                 if result.status == AgentStatus.SUCCESS:
@@ -99,6 +102,7 @@ class BaseAgent(ABC):
                     status=AgentStatus.FAILED,
                     error=str(e),
                     duration_ms=duration_ms,
+                    attempts=attempt + 1,
                 )
                 if attempt < max_retries - 1:
                     delay = base_delay * (2**attempt)
@@ -109,4 +113,5 @@ class BaseAgent(ABC):
             agent_type=self.agent_type,
             status=AgentStatus.FAILED,
             error="Max retries exceeded",
+            attempts=max_retries,
         )

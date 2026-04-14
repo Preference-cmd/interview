@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.agents.analyzer import AnalyzerAgent
 from backend.agents.base import AgentResult
@@ -36,17 +38,18 @@ class WorkflowEngine:
     STATES_REQUIRING_MOBILE_OPS = {WorkflowState.DAILY_OPS}
     STATES_REQUIRING_REPORTER = {WorkflowState.WEEKLY_REPORT}
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.analyzer = AnalyzerAgent()
         self.web_operator = WebOperatorAgent(failure_rate=0.2)
         self.mobile_operator = MobileOperatorAgent(failure_rate=0.25)
         self.reporter = ReporterAgent()
 
-    def get_or_create_workflow(self, store: Store) -> WorkflowInstance:
+    async def get_or_create_workflow(self, store: Store) -> WorkflowInstance:
         """Get existing workflow or create a new one for the store."""
         stmt = select(WorkflowInstance).where(WorkflowInstance.store_id == store.id)
-        wf = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        wf = result.scalar_one_or_none()
         if wf is None:
             wf = WorkflowInstance(
                 store_id=store.id,
@@ -56,8 +59,8 @@ class WorkflowEngine:
                 started_at=datetime.now(UTC),
             )
             self.db.add(wf)
-            self.db.flush()
-            self._log_event(
+            await self.db.flush()
+            await self._log_event(
                 store_id=store.id,
                 event_type="workflow_created",
                 message=f"Workflow created for store {store.store_id}",
@@ -71,7 +74,7 @@ class WorkflowEngine:
         Execute the full workflow for a store.
         Runs agents based on current state, handles transitions, and manages failures.
         """
-        wf = self.get_or_create_workflow(store)
+        wf = await self.get_or_create_workflow(store)
         state = WorkflowState(wf.current_state)
 
         logger.info(f"Starting workflow for store {store.store_id}, state={state.value}")
@@ -84,33 +87,30 @@ class WorkflowEngine:
         agents_to_run = self._get_agents_for_state(state)
 
         # Build context
-        context = {
+        context: dict = {
             "store_id": store.store_id,
             "store_data": self._store_to_dict(store),
             "workflow_state": state.value,
         }
 
         # Run agents and collect results
-        agent_results: list[AgentResult] = []
         any_failure = False
 
         for agent_type in agents_to_run:
             context, result = await self._run_agent(agent_type, context, wf)
-            agent_results.append(result)
-
-            # Persist agent run
-            self._persist_agent_run(store.id, agent_type, context, result, state)
+            # Persist: pass actual retry count from result
+            await self._persist_agent_run(store.id, agent_type, context, result, state)
 
             if result.status != AgentResultStatus.SUCCESS:
                 any_failure = True
-                break  # Stop on first failure, let state transition handle it
+                break
 
         # Determine next state
         if any_failure:
             wf.consecutive_failures += 1
             if wf.consecutive_failures >= self.MAX_RETRIES:
                 next_state = WorkflowState.MANUAL_REVIEW
-                self._create_alert(
+                await self._create_alert(
                     store_id=store.id,
                     alert_type="consecutive_failure",
                     severity="critical",
@@ -122,7 +122,7 @@ class WorkflowEngine:
                     f"{wf.consecutive_failures} -> MANUAL_REVIEW"
                 )
             else:
-                next_state = state  # Stay in same state for retry
+                next_state = state
                 logger.warning(
                     f"Store {store.store_id}: failure in {state.value}, "
                     f"retry {wf.consecutive_failures}/{self.MAX_RETRIES - 1}"
@@ -137,7 +137,7 @@ class WorkflowEngine:
 
         # Transition state
         if next_state != state:
-            self._transition_state(store.id, wf, state, next_state)
+            await self._transition_state(store.id, wf, state, next_state)
 
         # Generate report if entering WEEKLY_REPORT
         if next_state == WorkflowState.WEEKLY_REPORT:
@@ -145,14 +145,16 @@ class WorkflowEngine:
 
         wf.updated_at = datetime.now(UTC)
         self.db.add(wf)
-        self.db.flush()
+        await self.db.flush()
         return wf
 
     async def _run_agent(
         self, agent_type: str, context: dict, wf: WorkflowInstance
     ) -> tuple[dict, AgentResult]:
         """Run a specific agent with context."""
-        agent_map = {
+        agent_map: dict[
+            str, AnalyzerAgent | MobileOperatorAgent | ReporterAgent | WebOperatorAgent
+        ] = {
             "analyzer": self.analyzer,
             "web_operator": self.web_operator,
             "mobile_operator": self.mobile_operator,
@@ -169,21 +171,10 @@ class WorkflowEngine:
 
         logger.info(f"Running agent {agent_type} for {context.get('store_id')}")
 
-        # Add diagnosis from context if available
-        if agent_type == "web_operator" and "diagnosis" in context:
-            pass  # Already in context
-
-        # Run with retry
-        failure_rate = 0.0
-        if agent_type == "web_operator":
-            failure_rate = 0.2
-        elif agent_type == "mobile_operator":
-            failure_rate = 0.25
-
+        # Agent's own failure_rate is injected at construction
         result = await agent.run_with_retry(
             context,
             max_retries=self.MAX_RETRIES,
-            failure_rate=failure_rate,
         )
 
         # Update context with agent output
@@ -196,7 +187,7 @@ class WorkflowEngine:
 
     def _get_agents_for_state(self, state: WorkflowState) -> list[str]:
         """Return list of agent types to run for a given state."""
-        agents = []
+        agents: list[str] = []
         if state in self.STATES_REQUIRING_ANALYZER:
             agents.append("analyzer")
         if state in self.STATES_REQUIRING_WEB_OPS:
@@ -209,7 +200,7 @@ class WorkflowEngine:
 
     def _get_next_state(self, current: WorkflowState) -> WorkflowState:
         """Get the next state in the happy path."""
-        next_map = {
+        next_map: dict[WorkflowState, WorkflowState] = {
             WorkflowState.NEW_STORE: WorkflowState.DIAGNOSIS,
             WorkflowState.DIAGNOSIS: WorkflowState.FOUNDATION,
             WorkflowState.FOUNDATION: WorkflowState.DAILY_OPS,
@@ -218,13 +209,13 @@ class WorkflowEngine:
         }
         return next_map.get(current, current)
 
-    def _transition_state(
+    async def _transition_state(
         self,
         store_id: int,
         wf: WorkflowInstance,
         from_state: WorkflowState,
         to_state: WorkflowState,
-    ):
+    ) -> None:
         """Transition workflow to a new state with validation."""
         valid = VALID_TRANSITIONS.get(from_state, set())
         if to_state not in valid and to_state != WorkflowState.MANUAL_REVIEW:
@@ -234,9 +225,9 @@ class WorkflowEngine:
         old_state = wf.current_state
         wf.current_state = to_state.value
         self.db.add(wf)
-        self.db.flush()
+        await self.db.flush()
 
-        self._log_event(
+        await self._log_event(
             store_id=store_id,
             event_type="state_change",
             from_state=from_state.value,
@@ -245,9 +236,9 @@ class WorkflowEngine:
         )
         logger.info(f"Store {store_id}: transitioned {from_state.value} -> {to_state.value}")
 
-    async def _generate_report(self, store: Store, context: dict, report_type: str):
+    async def _generate_report(self, store: Store, context: dict, report_type: str) -> None:
         """Generate and persist a report."""
-        report_context = {
+        report_context: dict = {
             **context,
             "store_id": store.store_id,
             "store_data": self._store_to_dict(store),
@@ -264,8 +255,8 @@ class WorkflowEngine:
                 content_json=result.data.get("json_report"),
             )
             self.db.add(report)
-            self.db.flush()
-            self._log_event(
+            await self.db.flush()
+            await self._log_event(
                 store_id=store.id,
                 event_type="report_generated",
                 message=f"{report_type} report generated",
@@ -273,15 +264,18 @@ class WorkflowEngine:
             )
             logger.info(f"Report generated for store {store.store_id}")
 
-    def _persist_agent_run(
+    async def _persist_agent_run(
         self,
         store_id: int,
         agent_type: str,
         context: dict,
         result: AgentResult,
         state: WorkflowState,
-    ):
+    ) -> None:
         """Persist an agent run record."""
+        # retry_count = attempts - 1 (attempts includes the final attempt)
+        retry_count = getattr(result, "attempts", 1) - 1
+
         run = AgentRun(
             store_id=store_id,
             agent_type=agent_type,
@@ -290,13 +284,13 @@ class WorkflowEngine:
             input_data={"store_data": context.get("store_data", {})},
             output_data=result.data or {},
             error_msg=result.error,
-            retry_count=0,  # Could track from agent internals
+            retry_count=retry_count,
             duration_ms=result.duration_ms,
         )
         self.db.add(run)
-        self.db.flush()
+        await self.db.flush()
 
-        self._log_event(
+        await self._log_event(
             store_id=store_id,
             event_type="agent_run",
             agent_type=agent_type,
@@ -304,7 +298,7 @@ class WorkflowEngine:
             extra_data={"run_id": run.id, "error": result.error},
         )
 
-    def _log_event(
+    async def _log_event(
         self,
         store_id: int,
         event_type: str,
@@ -313,7 +307,7 @@ class WorkflowEngine:
         agent_type: str | None = None,
         message: str | None = None,
         extra_data: dict | None = None,
-    ):
+    ) -> None:
         """Create a structured event log entry."""
         event = EventLog(
             store_id=store_id,
@@ -326,14 +320,14 @@ class WorkflowEngine:
         )
         self.db.add(event)
 
-    def _create_alert(
+    async def _create_alert(
         self,
         store_id: int,
         alert_type: str,
         severity: str,
         message: str,
         extra_data: dict | None = None,
-    ):
+    ) -> None:
         """Create an alert for anomalies."""
         alert = Alert(
             store_id=store_id,
@@ -344,25 +338,25 @@ class WorkflowEngine:
         )
         self.db.add(alert)
 
-    def trigger_manual_takeover(self, store: Store) -> WorkflowInstance:
+    async def trigger_manual_takeover(self, store: Store) -> WorkflowInstance:
         """Move a store to MANUAL_REVIEW state."""
-        wf = self.get_or_create_workflow(store)
+        wf = await self.get_or_create_workflow(store)
         old_state = WorkflowState(wf.current_state)
 
         wf.current_state = WorkflowState.MANUAL_REVIEW.value
         wf.consecutive_failures = 0
         wf.updated_at = datetime.now(UTC)
         self.db.add(wf)
-        self.db.flush()
+        await self.db.flush()
 
-        self._log_event(
+        await self._log_event(
             store_id=store.id,
             event_type="manual_takeover",
             from_state=old_state.value,
             to_state=WorkflowState.MANUAL_REVIEW.value,
             message="Manual takeover triggered",
         )
-        self._create_alert(
+        await self._create_alert(
             store_id=store.id,
             alert_type="manual_takeover",
             severity="warning",

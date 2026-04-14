@@ -1,5 +1,3 @@
-"""Legacy module — models moved to backend.models subpackage."""
-
 from backend.models._enums import VALID_TRANSITIONS, AgentStatus, WorkflowState
 from backend.models.agent_run import AgentRun
 from backend.models.alert import Alert

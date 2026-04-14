@@ -1,5 +1,3 @@
-"""Legacy module — schemas moved to backend.schemas subpackage."""
-
 from backend.schemas.agent import AgentRunResponse
 from backend.schemas.store import StoreImportItem, StoreImportRequest, StoreResponse
 from backend.schemas.timeline import EventLogResponse, TimelineResponse

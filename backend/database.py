@@ -1,3 +1,7 @@
+"""Legacy module — for backwards compatibility only. Use backend.database instead."""
+
+from __future__ import annotations
+
 import os
 
 from sqlalchemy import create_engine
@@ -18,19 +22,6 @@ AsyncSessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
-
-
-async def get_db():
-    """Dependency for FastAPI routes to get DB session."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
 
 
 def init_db():

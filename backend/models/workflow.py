@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from backend.database import Base
@@ -21,6 +21,7 @@ class WorkflowInstance(Base):
     current_state = Column(String(32), default=WorkflowState.NEW_STORE.value, index=True)
     consecutive_failures = Column(Integer, default=0)
     retry_count = Column(Integer, default=0)
+    is_running = Column(Boolean, default=False, index=True)
     started_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 

@@ -6,12 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A **multi-agent operations system** for 本地生活 (local life services) merchant operations on platforms like 美团/大众点评. The system automates the workflow of 代运营 (third-party operations) agents that manage merchant stores on these platforms.
 
-Merchants use platforms like 美团 to reach local customers. 代运营 companies help merchants with store setup, marketing, review management, and data reporting. This system automates that workflow using AI agents.
-
 ## Tech Stack
 
 - **Backend**: Python 3.12 + FastAPI + SQLAlchemy + SQLite (aiosqlite for async)
-- **Frontend**: Next.js 16 (App Router, TypeScript)
+- **Frontend**: Next.js 16 (App Router, TypeScript) + Tailwind CSS v4 + shadcn/ui
 - **Package Manager**: `uv` (backend), `pnpm` (frontend)
 - **Testing**: pytest with pytest-asyncio
 
@@ -40,74 +38,28 @@ NEW_STORE → DIAGNOSIS → FOUNDATION → DAILY_OPS → WEEKLY_REPORT → DONE
 任意阶段异常 → MANUAL_REVIEW
 ```
 
-### Four Mock Agents
-| Agent | Responsibility | Delay | Failure Rate |
-|-------|---------------|-------|-------------|
-| AnalyzerAgent | Diagnose store + competitor data, output structured JSON with scores | — | 0% |
-| WebOperatorAgent | Simulate backend actions (create deals, set promotions) | 1-3s | 20% |
-| MobileOperatorAgent | Simulate App actions (material check, activity confirm) | 2-5s | 25% |
-| ReporterAgent | Generate daily/weekly markdown reports with KPI summaries | — | 0% |
-
-### Required APIs
-- `POST /stores/import` — Batch import store data
-- `POST /stores/{id}/start` — Start store workflow (background)
-- `GET /stores/{id}/status` — Query current state + recent agent runs
-- `GET /stores/{id}/timeline` — Query store event timeline
-- `GET /dashboard/summary` — Global overview (state distribution, anomalies, queue backlog)
-- `POST /stores/{id}/manual-takeover` — Trigger manual intervention
-- `GET /alerts` — List all alerts
-- `POST /alerts/{id}/acknowledge` — Acknowledge alert
-
-## Directory Structure
+### Directory Structure
 ```
-backend/
-├── main.py              # FastAPI entry, CORS configured
-├── models.py           # SQLAlchemy models (6 tables)
-├── schemas.py          # Pydantic schemas
-├── database.py         # SQLite connection + Base
-├── logging_config.py   # Structured logging setup
-├── agents/
-│   ├── base.py        # BaseAgent abstract class + retry logic
-│   ├── analyzer.py    # AnalyzerAgent
-│   ├── web_operator.py # WebOperatorAgent
-│   ├── mobile_operator.py # MobileOperatorAgent
-│   └── reporter.py    # ReporterAgent
-├── orchestrator/
-│   └── engine.py      # WorkflowEngine with state machine
-└── pyproject.toml     # uv config
+backend/              # FastAPI + SQLAlchemy + SQLite (see backend/main.py)
 frontend/
 ├── app/
-│   ├── page.tsx       # Dashboard (stores list, charts, alerts)
-│   └── layout.tsx     # Root layout
-├── components/
-│   ├── StateBadge.tsx
-│   ├── AlertList.tsx
-│   ├── StoreList.tsx
-│   ├── StoreTimeline.tsx
-│   └── DashboardCharts.tsx  # PieChart, BarChart (recharts)
-└── lib/
-    ├── api.ts         # API client
-    └── types.ts      # TypeScript types + constants
-tests/
-├── conftest.py       # pytest config + pythonpath
-└── test_example.py   # 16 tests: state machine, engine, retry, manual takeover
-mock_data/
-├── stores.json       # 10 mock stores
-├── competitors.json
-└── reviews.json
+│   ├── page.tsx       # Dashboard
+│   ├── layout.tsx     # Root layout
+│   └── stores/[id]/page.tsx   # Store detail (see doc/README.md)
+├── components/        # UI components
+└── lib/               # API client, types
+tests/                 # pytest (conftest.py, test_example.py)
+mock_data/             # JSON fixtures
 Makefile
-README.md             # Project overview
-ARCHITECTURE.md       # Architecture diagram, state machine, data flow
-AI_USAGE.md           # AI tool usage log
 ```
 
 ## Workflow Standards
 
-- 使用 [superpowers workflow](https://github.com/anthropics/claude-code/tree/main/.claude/skills/superpowers) 进行开发：brainstorm → write-plan → execute → code-review → finish
+使用 [superpowers workflow](https://github.com/anthropics/claude-code/tree/main/.claude/skills/superpowers) 进行开发：brainstorm → write-plan → execute → code-review → finish
 
-## Frontend Design System
+## Frontend
 
-All frontend implementation **must** follow the design system specified in `frontend/DESIGN.md`. This file is the authoritative spec for visual design, color palette, typography, component styling, and layout principles.
+All frontend implementation follows `frontend/DESIGN.md` (color palette, typography, component styling). Design specs and implementation plans are in `doc/README.md`. 实现前必须先查阅对应规范，确保实现符合设计意图。
 
 ## Important Implementation Notes
 
@@ -116,9 +68,10 @@ All frontend implementation **must** follow the design system specified in `fron
 - `__table_args__ = {"extend_existing": True}` on all models for test compatibility.
 - The `backend-test` Makefile target runs from `backend/` so `pyproject.toml`'s `pythonpath` is respected.
 - SQLite database file is `backend/multi_agent_ops.db` (gitignored).
-- The `doc/` directory is **gitignored** (contains reference materials).
+- The `doc/` directory is **not gitignored** — contains versioned design specs and plans.
 
 ## Important Constraints
+
 - Mock agents do NOT need real 美团/开店宝/企微 integration — just mock behavior
 - Frontend doesn't need to be visually polished — focus on information architecture
 - Do NOT need real Redis — can use in-memory dict with `# TODO: replace with real Redis` annotation

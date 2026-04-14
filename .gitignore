@@ -45,8 +45,8 @@ pnpm-debug.log*
 # Build artifacts
 frontend/node_modules/
 
-# Documentation (interview reference materials)
-doc/
+# Documentation
+# doc/specs/ and doc/plan/ are versioned (design specs and plans)
 
 # TypeScript
 *.tsbuildinfo

@@ -1,0 +1,30 @@
+[
+  {
+    "review_id": "rev_001",
+    "store_id": "mt_001",
+    "rating": 5,
+    "content": "味道很好，食材新鲜，服务态度也不错",
+    "date": "2025-03-15"
+  },
+  {
+    "review_id": "rev_002",
+    "store_id": "mt_001",
+    "rating": 3,
+    "content": "等餐时间太长了，而且菜有点少了",
+    "date": "2025-03-14"
+  },
+  {
+    "review_id": "rev_003",
+    "store_id": "mt_002",
+    "rating": 2,
+    "content": "新开的店，感觉还没准备好就上线了",
+    "date": "2025-03-10"
+  },
+  {
+    "review_id": "rev_004",
+    "store_id": "mt_003",
+    "rating": 5,
+    "content": "早餐首选！小笼包皮薄馅大，汤汁鲜美",
+    "date": "2025-03-16"
+  }
+]

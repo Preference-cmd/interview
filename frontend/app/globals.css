@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #f5f4ed; /* parchment */
+    --foreground: #141413; /* anthropic near black */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #141413;
+      --foreground: #b0aea5;
+    }
+  }
+
+  html,
+  body {
+    @apply h-full max-w-[100vw] overflow-x-hidden;
+  }
+
+  body {
+    @apply min-h-full flex flex-col text-foreground bg-background font-anthropic-sans antialiased;
+  }
+}
+

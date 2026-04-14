@@ -1,0 +1,28 @@
+[
+  {
+    "competitor_id": "comp_001",
+    "store_id": "mt_001",
+    "competitors": [
+      {"name": "杨国福麻辣烫", "rating": 4.5, "avg_discount": 0.78, "deal_count": 3},
+      {"name": "张亮麻辣烫", "rating": 4.3, "avg_discount": 0.75, "deal_count": 2},
+      {"name": "自煮麻辣烫", "rating": 4.0, "avg_discount": 0.70, "deal_count": 1}
+    ]
+  },
+  {
+    "competitor_id": "comp_002",
+    "store_id": "mt_002",
+    "competitors": [
+      {"name": "黄焖鸡米饭", "rating": 4.1, "avg_discount": 0.80, "deal_count": 2},
+      {"name": "瓦罐黄焖鸡", "rating": 3.9, "avg_discount": 0.82, "deal_count": 1}
+    ]
+  },
+  {
+    "competitor_id": "comp_003",
+    "store_id": "mt_008",
+    "competitors": [
+      {"name": "海底捞火锅", "rating": 4.8, "avg_discount": 0.65, "deal_count": 5},
+      {"name": "小龙坎火锅", "rating": 4.5, "avg_discount": 0.72, "deal_count": 4},
+      {"name": "傣妹火锅", "rating": 4.0, "avg_discount": 0.85, "deal_count": 2}
+    ]
+  }
+]

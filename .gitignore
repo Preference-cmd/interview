@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+*.db
+*.db-journal
+
+# Node
+node_modules/
+.pnpm-store/
+.pnp
+.pnp.*
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Build artifacts
+frontend/node_modules/
+
+# Documentation (interview reference materials)
+doc/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

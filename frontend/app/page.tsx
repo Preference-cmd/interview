@@ -1,0 +1,322 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  getDashboard,
+  getStores,
+  getAlerts,
+  acknowledgeAlert,
+} from "@/lib/api";
+import type { DashboardSummary, Store } from "@/lib/types";
+import { AlertList } from "@/components/AlertList";
+import { StoreList } from "@/components/StoreList";
+import {
+  StatePieChart,
+  ManualReviewBarChart,
+  RecentRunsChart,
+} from "@/components/DashboardCharts";
+import { LayoutDashboard, Store as StoreIcon, Bell, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Tab = "dashboard" | "stores" | "alerts";
+
+export default function DashboardPage() {
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [s, st, al] = await Promise.all([
+        getDashboard(),
+        getStores(),
+        getAlerts(),
+      ]);
+      setSummary(s);
+      setStores(st);
+      setAlerts(al);
+      setLastRefresh(new Date());
+    } catch (e) {
+      console.error("Failed to load data:", e);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function handleAcknowledge(alertId: number) {
+    await acknowledgeAlert(alertId);
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, acknowledged: true } : a))
+    );
+  }
+
+  const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
+
+  return (
+    <div className="min-h-screen bg-parchment flex font-anthropic-sans">
+      {/* Sidebar */}
+      <aside className="w-64 bg-ivory border-r border-border-cream flex flex-col shrink-0 sticky top-0 h-screen">
+        <div className="h-16 px-6 flex items-center border-b border-border-cream">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-comfortably-rounded bg-terracotta flex items-center justify-center">
+              <span className="text-ivory font-anthropic-serif font-medium text-lg leading-none">M</span>
+            </div>
+            <span className="font-anthropic-serif font-medium text-[20.8px] text-anthropic-near-black">
+              Agent Ops
+            </span>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
+          {[
+            { key: "dashboard", label: "监控台", icon: LayoutDashboard },
+            { key: "stores", label: "门店列表", icon: StoreIcon },
+            {
+              key: "alerts",
+              label: `告警${unreadAlerts > 0 ? ` (${unreadAlerts})` : ""}`,
+              icon: Bell,
+            },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key as Tab)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-comfortably-rounded text-sm transition-colors",
+                tab === key
+                  ? "bg-warm-sand text-anthropic-near-black font-medium"
+                  : "text-olive-gray hover:bg-parchment hover:text-anthropic-near-black"
+              )}
+            >
+              <Icon className="w-[18px] h-[18px]" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-6 border-t border-border-cream flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-gray font-anthropic-mono">
+              上次更新: {lastRefresh.toLocaleTimeString("zh-CN")}
+            </span>
+            <button
+              onClick={loadData}
+              disabled={loading}
+              className="p-1.5 rounded-subtly-rounded border border-border-cream bg-white text-olive-gray hover:bg-parchment transition-colors shadow-sm disabled:opacity-50"
+            >
+              <RefreshCw
+                className={cn("w-3.5 h-3.5", loading && "animate-spin")}
+              />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto bg-parchment">
+        <div className="max-w-[1200px] mx-auto p-8 md:p-12 lg:p-16">
+          <header className="mb-12">
+            <h1 className="font-anthropic-serif text-[52px] font-medium text-anthropic-near-black leading-tight tracking-normal">
+              {tab === "dashboard" && "运营监控台"}
+              {tab === "stores" && "门店管理"}
+              {tab === "alerts" && "系统告警"}
+            </h1>
+          </header>
+
+          {loading && !summary && (
+            <div className="py-20 text-center text-stone-gray font-anthropic-serif text-lg">
+              正在加载运营数据...
+            </div>
+          )}
+
+          {summary && (
+            <div className="flex flex-col gap-12">
+              {/* Dashboard Tab */}
+              {tab === "dashboard" && (
+                <>
+                  {/* KPI Cards */}
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <KPICard
+                      label="门店总数"
+                      value={summary.total_stores.toString()}
+                    />
+                    <KPICard
+                      label="异常告警"
+                      value={summary.anomaly_count.toString()}
+                      highlight={summary.anomaly_count > 0 ? "error" : "success"}
+                    />
+                    <KPICard
+                      label="人工接管队列"
+                      value={summary.manual_review_queue.length.toString()}
+                      highlight="warning"
+                    />
+                    <KPICard
+                      label="最近 Agent 执行"
+                      value={summary.recent_agent_runs.length.toString()}
+                    />
+                  </section>
+
+                  {/* Charts Row */}
+                  <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Card title="状态分布">
+                      <StatePieChart data={summary} />
+                    </Card>
+                    <Card title="人工接管队列积压">
+                      <ManualReviewBarChart data={summary} />
+                    </Card>
+                  </section>
+
+                  <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 flex flex-col gap-6">
+                      <Card title="最近 Agent 执行">
+                        <RecentRunsChart data={summary} />
+                        <div className="mt-6">
+                          <RecentRunsTable runs={summary.recent_agent_runs.slice(0, 5)} />
+                        </div>
+                      </Card>
+                    </div>
+                    <div className="flex flex-col gap-6">
+                      <Card title="最新告警">
+                        <AlertList
+                          alerts={summary.recent_alerts.slice(0, 5)}
+                          onAcknowledge={handleAcknowledge}
+                        />
+                      </Card>
+                    </div>
+                  </section>
+                </>
+              )}
+
+              {/* Stores Tab */}
+              {tab === "stores" && (
+                <div className="bg-ivory rounded-very-rounded border border-border-cream shadow-whisper p-6 overflow-hidden">
+                   <StoreList stores={stores} />
+                </div>
+              )}
+
+              {/* Alerts Tab */}
+              {tab === "alerts" && (
+                <div className="bg-ivory rounded-very-rounded border border-border-cream shadow-whisper p-6">
+                   <AlertList alerts={alerts} onAcknowledge={handleAcknowledge} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function KPICard({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: "error" | "warning" | "success";
+}) {
+  return (
+    <div className="bg-ivory rounded-very-rounded border border-border-cream p-6 shadow-whisper">
+      <div className="text-[15px] text-olive-gray mb-3">{label}</div>
+      <div
+        className={cn(
+          "text-[36px] font-medium font-anthropic-serif leading-tight",
+          highlight === "error" && "text-error-crimson",
+          highlight === "warning" && "text-terracotta",
+          highlight === "success" && "text-anthropic-near-black",
+          !highlight && "text-anthropic-near-black"
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-ivory rounded-very-rounded border border-border-cream p-8 shadow-whisper h-full">
+      <h3 className="font-anthropic-serif text-[25px] font-medium text-anthropic-near-black mb-8">
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function RecentRunsTable({ runs }: { runs: any[] }) {
+  if (runs.length === 0) {
+    return <div className="text-stone-gray text-center py-8">暂无执行记录</div>;
+  }
+
+  const AGENT_LABELS: Record<string, string> = {
+    analyzer: "诊断",
+    web_operator: "后台",
+    mobile_operator: "移动端",
+    reporter: "报表",
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead>
+          <tr className="border-b border-border-cream">
+            {["门店", "Agent", "状态", "耗时"].map((h) => (
+              <th
+                key={h}
+                className="py-3 px-2 text-stone-gray font-normal"
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border-cream">
+          {runs.map((run) => (
+            <tr key={run.id} className="group hover:bg-parchment/50 transition-colors">
+              <td className="py-3 px-2 text-anthropic-near-black max-w-[120px] truncate">
+                {run.store_name}
+              </td>
+              <td className="py-3 px-2">
+                <span className="px-2 py-1 rounded-subtly-rounded text-xs bg-warm-sand text-charcoal-warm font-medium">
+                  {AGENT_LABELS[run.agent_type] || run.agent_type}
+                </span>
+              </td>
+              <td className="py-3 px-2">
+                <span
+                  className={cn(
+                    "font-medium",
+                    run.status === "success" && "text-olive-gray",
+                    run.status === "failed" && "text-error-crimson",
+                    run.status === "running" && "text-terracotta"
+                  )}
+                >
+                  {run.status === "success" ? "成功" : run.status === "failed" ? "失败" : "运行中"}
+                </span>
+              </td>
+              <td className="py-3 px-2 text-stone-gray font-anthropic-mono text-xs">
+                {run.duration_ms}ms
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

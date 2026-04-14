@@ -15,6 +15,7 @@ from backend.schemas import (
 )
 from backend.stores.agent_run import AgentRunStore
 from backend.stores.event_log import EventLogStore
+from backend.stores.report import ReportStore
 from backend.stores.store import StoreStore
 from backend.stores.workflow import WorkflowStore
 
@@ -29,6 +30,7 @@ class WorkflowService:
         workflow_store: WorkflowStore,
         agent_run_store: AgentRunStore,
         event_log_store: EventLogStore,
+        report_store: ReportStore,
         state_machine: StateMachine,
         event_emitter: EventEmitter,
         agent_runner: AgentRunner,
@@ -38,6 +40,7 @@ class WorkflowService:
         self._workflow = workflow_store
         self._agent_run = agent_run_store
         self._event_log = event_log_store
+        self._report = report_store
         self._state_machine = state_machine
         self._event_emitter = event_emitter
         self._agent_runner = agent_runner
@@ -111,7 +114,9 @@ class WorkflowService:
         store = await self._require_store(store_id)
         async with AsyncSessionLocal() as session:
             eng = WorkflowEngine(
-                db=session,
+                workflow_store=self._workflow,
+                agent_run_store=self._agent_run,
+                report_store=self._report,
                 state_machine=self._state_machine,
                 event_emitter=self._event_emitter,
                 agent_runner=self._agent_runner,
@@ -130,7 +135,9 @@ class WorkflowService:
     async def manual_takeover(self, store_id: int) -> dict[str, int | str]:
         store = await self._require_store(store_id)
         eng = WorkflowEngine(
-            db=self._session,
+            workflow_store=self._workflow,
+            agent_run_store=self._agent_run,
+            report_store=self._report,
             state_machine=self._state_machine,
             event_emitter=self._event_emitter,
             agent_runner=self._agent_runner,

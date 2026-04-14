@@ -16,6 +16,7 @@ from backend.schemas import (
 )
 from backend.service import WorkflowService
 from backend.stores import AgentRunStore, EventLogStore, StoreStore, WorkflowStore
+from backend.stores.report import ReportStore
 
 router = APIRouter()
 
@@ -39,8 +40,9 @@ def _build_workflow_service(
         workflow_store,
         agent_run_store,
         event_log_store,
+        ReportStore(db),
         StateMachine(),
-        EventEmitter(),
+        EventEmitter(db),
         AgentRunner(agents),
     )
 

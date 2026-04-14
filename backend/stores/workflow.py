@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models import Store, WorkflowInstance, WorkflowState
+from backend.logging_config import get_logger
+from backend.models import VALID_TRANSITIONS, Store, WorkflowInstance, WorkflowState
+
+logger = get_logger(__name__)
 
 
 class WorkflowStore:
@@ -35,3 +40,56 @@ class WorkflowStore:
         )
         result = await self._session.execute(stmt)
         return list(result.all())
+
+    async def create_workflow(self, store_id: int) -> WorkflowInstance:
+        """Create a new workflow instance for a store."""
+        wf = WorkflowInstance(
+            store_id=store_id,
+            current_state=WorkflowState.NEW_STORE.value,
+            consecutive_failures=0,
+            retry_count=0,
+            started_at=datetime.now(UTC),
+        )
+        self._session.add(wf)
+        await self._session.flush()
+        return wf
+
+    async def get_or_create_workflow(self, store_id: int) -> WorkflowInstance:
+        """Get existing workflow or create a new one."""
+        wf = await self.get_by_store_id(store_id)
+        if wf is None:
+            wf = await self.create_workflow(store_id)
+        return wf
+
+    async def transition_workflow(
+        self,
+        wf: WorkflowInstance,
+        from_state: WorkflowState,
+        to_state: WorkflowState,
+    ) -> None:
+        """Transition workflow to a new state with validation."""
+        valid = VALID_TRANSITIONS.get(from_state, set())
+        if to_state not in valid:
+            logger.error(f"Invalid transition: {from_state.value} -> {to_state.value}")
+            return
+
+        wf.current_state = to_state.value
+        self._session.add(wf)
+        await self._session.flush()
+        logger.info(f"Store {wf.store_id}: transitioned {from_state.value} -> {to_state.value}")
+
+    async def trigger_manual_takeover(self, wf: WorkflowInstance) -> WorkflowInstance:
+        """Move a workflow to MANUAL_REVIEW state."""
+        wf.current_state = WorkflowState.MANUAL_REVIEW.value
+        wf.consecutive_failures = 0
+        wf.updated_at = datetime.now(UTC)
+        self._session.add(wf)
+        await self._session.flush()
+        logger.info(f"Manual takeover triggered for store {wf.store_id}")
+        return wf
+
+    async def update_timestamp(self, wf: WorkflowInstance) -> None:
+        """Update workflow updated_at timestamp."""
+        wf.updated_at = datetime.now(UTC)
+        self._session.add(wf)
+        await self._session.flush()

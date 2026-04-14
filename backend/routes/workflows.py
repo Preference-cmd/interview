@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.agents.analyzer import AnalyzerAgent
@@ -12,6 +12,7 @@ from backend.orchestrator import AgentRunner, EventEmitter, StateMachine
 from backend.schemas import (
     StoreResponse,
     TimelineResponse,
+    WorkflowStartRequest,
     WorkflowStatusResponse,
 )
 from backend.service import WorkflowService
@@ -65,8 +66,12 @@ async def get_store_detail(
 @router.post("/{store_id}/start")
 async def start_workflow(
     store_id: int,
+    request: Request,
+    body: WorkflowStartRequest | None = None,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, int | str]:
+) -> dict[str, int | str | bool]:
+    if body is None:
+        body = WorkflowStartRequest()
     service = _build_workflow_service(
         db,
         StoreStore(db),
@@ -74,7 +79,13 @@ async def start_workflow(
         AgentRunStore(db),
         EventLogStore(db),
     )
-    return await service.start_workflow(store_id)
+    task_registry: dict = getattr(request.app.state, "_workflow_tasks", {})
+    return await service.start_workflow_loop(
+        store_id,
+        delay_seconds=body.delay_seconds,
+        force_restart=body.force_restart,
+        task_registry=task_registry,
+    )
 
 
 @router.get("/{store_id}/status", response_model=WorkflowStatusResponse)
@@ -105,6 +116,23 @@ async def get_timeline(
         EventLogStore(db),
     )
     return await service.get_timeline(store_id)
+
+
+@router.post("/{store_id}/stop")
+async def stop_workflow(
+    store_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, int | str | bool]:
+    service = _build_workflow_service(
+        db,
+        StoreStore(db),
+        WorkflowStore(db),
+        AgentRunStore(db),
+        EventLogStore(db),
+    )
+    task_registry: dict = getattr(request.app.state, "_workflow_tasks", {})
+    return await service.stop_workflow(store_id, task_registry=task_registry)
 
 
 @router.post("/{store_id}/manual-takeover")

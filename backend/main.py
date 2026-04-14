@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
@@ -29,7 +30,19 @@ async def lifespan(app: FastAPI):
         logger.info(f"Migrations applied: {applied}")
     else:
         logger.info("No pending migrations")
+
+    # Task registry for background workflow loops
+    app.state._workflow_tasks: dict[int, asyncio.Task] = {}
+
     yield
+
+    # Cancel all running workflow tasks on shutdown
+    logger.info("Cancelling all workflow tasks...")
+    tasks = list(app.state._workflow_tasks.values())
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
     logger.info("Shutting down...")
 
 

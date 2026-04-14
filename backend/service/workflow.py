@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.logging_config import get_logger
-from backend.models import Store
+from backend.models import Store, WorkflowState
 from backend.orchestrator import AgentRunner, EventEmitter, StateMachine, WorkflowEngine
 from backend.schemas import (
     AgentRunResponse,
@@ -20,6 +22,45 @@ from backend.stores.store import StoreStore
 from backend.stores.workflow import WorkflowStore
 
 logger = get_logger(__name__)
+
+
+async def _run_loop_background(store_id: int, delay_seconds: float) -> None:
+    """Background task entry point — creates a standalone engine for the loop."""
+    try:
+        eng = WorkflowEngine(
+            workflow_store=WorkflowStore(None),
+            agent_run_store=AgentRunStore(None),
+            report_store=ReportStore(None),
+            state_machine=StateMachine(),
+            event_emitter=EventEmitter(None),
+            agent_runner=_build_agents(),
+        )
+        wf = await eng.run_workflow_loop(store_id, delay_seconds)
+        logger.info(
+            f"Background loop finished for store {store_id}, "
+            f"final state={wf.current_state if wf else 'unknown'}"
+        )
+    except asyncio.CancelledError:
+        logger.info(f"Background loop cancelled for store {store_id}")
+        raise
+    except Exception as e:
+        logger.error(f"Background loop error for store {store_id}: {e}", exc_info=True)
+
+
+def _build_agents() -> AgentRunner:
+    """Build agent runner with all agent types for background tasks."""
+    from backend.agents.analyzer import AnalyzerAgent
+    from backend.agents.mobile_operator import MobileOperatorAgent
+    from backend.agents.reporter import ReporterAgent
+    from backend.agents.web_operator import WebOperatorAgent
+
+    agents = {
+        "analyzer": AnalyzerAgent(),
+        "web_operator": WebOperatorAgent(failure_rate=0.2),
+        "mobile_operator": MobileOperatorAgent(failure_rate=0.25),
+        "reporter": ReporterAgent(),
+    }
+    return AgentRunner(agents)
 
 
 class WorkflowService:
@@ -67,6 +108,7 @@ class WorkflowService:
             current_state=wf.current_state,
             consecutive_failures=wf.consecutive_failures,
             retry_count=wf.retry_count,
+            is_running=wf.is_running,
             started_at=wf.started_at,
             recent_agent_runs=[
                 AgentRunResponse(
@@ -108,29 +150,114 @@ class WorkflowService:
             ],
         )
 
-    async def start_workflow(self, store_id: int) -> dict[str, int | str]:
-        from backend.database import AsyncSessionLocal
+    async def start_workflow(
+        self,
+        store_id: int,
+        delay_seconds: float = 3.0,
+        force_restart: bool = False,
+    ) -> dict[str, int | str | bool]:
+        await self._require_store(store_id)
 
+        # Check terminal state
+        wf = await self._workflow.get_by_store_id(store_id)
+        if wf and wf.current_state in (
+            WorkflowState.DONE.value,
+            WorkflowState.MANUAL_REVIEW.value,
+        ):
+            return {
+                "message": "Workflow already terminal",
+                "store_id": store_id,
+                "is_running": False,
+            }
+
+        return {
+            "message": "Workflow started in background",
+            "store_id": store_id,
+            "is_running": True,
+        }
+
+    async def start_workflow_loop(
+        self,
+        store_id: int,
+        delay_seconds: float = 3.0,
+        force_restart: bool = False,
+        task_registry: dict[int, asyncio.Task] | None = None,
+    ) -> dict[str, int | str | bool]:
+        """
+        Spawn a background task that runs the workflow loop.
+        Returns immediately with task status.
+        """
         store = await self._require_store(store_id)
-        async with AsyncSessionLocal() as session:
-            eng = WorkflowEngine(
-                workflow_store=self._workflow,
-                agent_run_store=self._agent_run,
-                report_store=self._report,
-                state_machine=self._state_machine,
-                event_emitter=self._event_emitter,
-                agent_runner=self._agent_runner,
-            )
-            try:
-                await eng.run_workflow(store)
-                await session.commit()
-            except Exception as e:
-                logger.error(
-                    f"Workflow error for store {store_id}: {e}", exc_info=True
-                )
-                await session.rollback()
-                raise
-        return {"message": "Workflow started", "store_id": store_id}
+
+        # Check terminal state
+        wf = await self._workflow.get_by_store_id(store_id)
+        if wf and wf.current_state in (
+            WorkflowState.DONE.value,
+            WorkflowState.MANUAL_REVIEW.value,
+        ):
+            return {
+                "message": "Workflow already terminal",
+                "store_id": store_id,
+                "is_running": False,
+            }
+
+        registry = task_registry or {}
+
+        # Cancel existing task if force_restart
+        if store.id in registry:
+            existing = registry[store.id]
+            if not existing.done():
+                if force_restart:
+                    existing.cancel()
+                    logger.info(f"Force-restart: cancelled existing loop for store {store_id}")
+                else:
+                    return {
+                        "message": "Workflow already running",
+                        "store_id": store_id,
+                        "is_running": True,
+                    }
+            # Clean up done tasks
+            del registry[store.id]
+
+        # Spawn background task
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(_run_loop_background(store.id, delay_seconds))
+        registry[store.id] = task
+
+        logger.info(
+            f"Spawned background loop for store {store_id} "
+            f"(delay={delay_seconds}s, force_restart={force_restart})"
+        )
+        return {
+            "message": "Workflow started in background",
+            "store_id": store_id,
+            "is_running": True,
+        }
+
+    async def stop_workflow(
+        self,
+        store_id: int,
+        task_registry: dict[int, asyncio.Task] | None = None,
+    ) -> dict[str, int | str | bool]:
+        """Cancel a running workflow loop for the given store."""
+        store = await self._require_store(store_id)
+        registry = task_registry or {}
+
+        task = registry.get(store.id)
+        if task and not task.done():
+            task.cancel()
+            del registry[store.id]
+            logger.info(f"Stopped workflow loop for store {store_id}")
+            return {
+                "message": "Workflow stopped",
+                "store_id": store_id,
+                "is_running": False,
+            }
+        return {
+            "message": "No running workflow",
+            "store_id": store_id,
+            "is_running": False,
+        }
 
     async def manual_takeover(self, store_id: int) -> dict[str, int | str]:
         store = await self._require_store(store_id)

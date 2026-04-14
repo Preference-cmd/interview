@@ -6,7 +6,6 @@
 
 | 日期 | 决策 | 理由 |
 |------|------|------|
-| 2026-04-14 | 使用 sync SQLAlchemy 而非 async | SQLite + 单线程场景下 sync 足够，避免 async 复杂度 |
 | 2026-04-14 | 使用 `asyncio.create_task()` 触发后台 workflow | 轻量，无需引入 Celery/Redis |
 | 2026-04-14 | 所有 agent 均为 mock | 无真实美团/开店宝/企微 接入需求 |
 | 2026-04-14 | Frontend: Tailwind CSS v4 + shadcn/ui | Modern CSS tooling, design system in `frontend/DESIGN.md` |
@@ -46,7 +45,6 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 | Feature | Spec/Plan | 状态 |
 |---------|------|------|
 | Store Detail Page | `superpowers/specs/STORE-DETAIL-DESIGN.md` | 设计完成，待实现 |
-| Backend async + modularization | `superpowers/plans/2026-04-14-*.md` | Plans 1-3 待执行 |
 
 ### 技术债务
 ```
@@ -61,16 +59,51 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 ```
 16 passed, 0 warnings
 - 6 state transition tests
-- 5 workflow engine tests
+- 5 workflow engine tests (async)
 - 2 retry logic tests
-- 2 manual takeover tests
+- 2 manual takeover tests (async)
 - 1 reporter idempotency test
 ```
 
-### 技术债务
+### 新目录结构
 ```
-# TODO: replace with real Redis  (engine.py — 内存队列替代方案标注)
-# TODO: upgrade to full async DB session (database.py — AsyncSessionLocal 未使用)
+backend/
+├── main.py                    # FastAPI app — router registration + lifespan
+├── database/
+│   ├── __init__.py            # Re-exports Base, async_engine, AsyncSessionLocal, get_db
+│   ├── base.py                # declarative Base
+│   └── session.py             # async_engine + AsyncSessionLocal + get_db (async)
+├── models/
+│   ├── __init__.py            # Re-exports all models and enums
+│   ├── _enums.py              # WorkflowState, AgentStatus, VALID_TRANSITIONS
+│   ├── store.py               # Store model
+│   ├── workflow.py            # WorkflowInstance model
+│   ├── agent_run.py           # AgentRun model
+│   ├── event_log.py           # EventLog model
+│   ├── alert.py               # Alert model
+│   └── report.py              # Report model
+├── schemas/
+│   ├── __init__.py            # Re-exports all schemas
+│   ├── store.py               # StoreImportRequest/Response
+│   ├── workflow.py            # WorkflowStatusResponse, DashboardSummaryResponse
+│   ├── agent.py               # AgentRunResponse
+│   └── timeline.py            # EventLogResponse, TimelineResponse
+├── routes/
+│   ├── __init__.py            # Re-exports all routers
+│   ├── stores.py              # /stores/import, /stores (GET)
+│   ├── workflows.py           # /stores/{id}/* (all workflow routes)
+│   ├── dashboard.py           # /dashboard/summary
+│   └── alerts.py              # /alerts, /alerts/{id}/acknowledge
+├── agents/                    # 4 mock agents (analyzer, web_operator, mobile_operator, reporter)
+├── orchestrator/
+│   └── engine.py              # WorkflowEngine — fully async
+├── migrations/
+│   ├── __init__.py
+│   ├── runner.py              # MigrationRunner
+│   ├── __main__.py           # CLI: python -m migrations
+│   └── sql/
+│       └── 0001_initial_schema.sql
+└── logging_config.py
 ```
 
 ### 已知问题
@@ -79,20 +112,13 @@ Next.js 16 + Tailwind CSS v4 + shadcn/ui + recharts
 |--------|------|------|------|
 | P0 | `workflow_instances.store_id` 缺唯一约束 | 并发创建可能产生多条记录 | ✅ 已修复 |
 | P0 | 缺关键查询索引 | `agent_runs`, `event_logs`, `alerts`, `reports` 需索引 | ✅ 已修复 |
-| P1 | 数据库层 sync/async 不一致 | `AsyncSessionLocal` 未使用，`get_db()` 产出 sync Session | Plan 1-2 中修复 |
-| P1 | `AgentRun.retry_count` 永远是 0 | `engine.py` 写死为 0 | Plan 3 中修复 |
-| P1 | 并发竞态 | 两个并发 `/stores/{id}/start` 可能同时创建 workflow | Plan 3 中修复 |
-
-### 进行中
-| Feature | Plan | 状态 |
-|---------|------|------|
-| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-sql-migrations.md` | Plan 1 — 待执行 |
-| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-database-models-schemas.md` | Plan 2 — 待执行 |
-| Backend async 化 + 模块化 | `superpowers/plans/2026-04-14-routes-engine-async.md` | Plan 3 — 待执行 |
+| P1 | 数据库层 sync/async 不一致 | `AsyncSessionLocal` 未使用，`get_db()` 产出 sync Session | ✅ Plan 1 已修复 |
+| P1 | `AgentRun.retry_count` 永远是 0 | `engine.py` 写死为 0 | ✅ Plan 3 已修复 — `AgentResult.attempts` 字段追踪重试次数 |
+| P1 | 并发竞态 | 两个并发 `/stores/{id}/start` 可能同时创建 workflow | 待修复 |
 
 ### 技术债务
 ```
 # TODO: replace with real Redis  (engine.py — 内存队列替代方案标注)
 # TODO: Alembic 替代手写 SQL migrations (if project scales beyond SQLite)
-# TODO: verify P1 retry_count fix with integration test
+# TODO: 并发竞态 — 两个并发 /stores/{id}/start 可能同时创建 workflow
 ```

@@ -163,3 +163,32 @@ run_workflow(store)
 ## 待后续处理
 
 - `routes/workflows.py` 构造方式的调整（依赖注入 + Agent 实例化），留待当前 routes 修改完成后进行
+
+## 测试策略
+
+每个新组件独立测试，无需真实 DB（使用 `AsyncSession` mock 或 `pytest.fixture` 提供）：
+
+| 文件 | 测试内容 |
+|------|---------|
+| `tests/test_state_machine.py` | `get_agents_for_state` 覆盖所有 5 个状态；`get_next_state` happy path + DONE 边界；`is_valid_transition` 合法/非法转换 |
+| `tests/test_event_emitter.py` | `log_event` / `create_alert` 写入正确 model 字段；DB session 被调用 |
+| `tests/test_agent_runner.py` | Agent 成功/失败路由；context 更新逻辑；`_store_to_dict` 字段映射 |
+| `tests/test_engine.py` | 编排流程端到端（mock 各组件）；状态转移触发正确组件调用 |
+
+- 所有测试使用 `pytest-asyncio`，`asyncio_mode = "auto"`（已在 `pyproject.toml`）
+- Mock 使用 `unittest.mock.patch` / `AsyncMock`，不依赖真实 DB
+- Mock Agent 实例由 fixture 提供，可复用
+
+## Ruff Linter
+
+Ruff 已配置于 `backend/pyproject.toml`，覆盖完整。新文件无需额外配置：
+
+- **F / E / W** — 语法、风格错误
+- **I** — import 排序（isort）
+- **N** — 命名规范（pep8-naming）
+- **UP** — pyupgrade（Python 3.12 最新语法）
+- **SIM** — 简化规则（simpler code）
+- **T20** — 禁止 print
+- **RUF** — ruff 专属规则
+
+新组件文件按现有规则编写即可，CI 中 `ruff check backend/` 已覆盖。

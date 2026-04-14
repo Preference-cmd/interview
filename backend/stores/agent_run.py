@@ -33,3 +33,31 @@ class AgentRunStore:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def create_agent_run(
+        self,
+        store_id: int,
+        agent_type: str,
+        status: str,
+        state_at_run: str,
+        input_data: dict,
+        output_data: dict,
+        error_msg: str | None,
+        retry_count: int,
+        duration_ms: int,
+    ) -> AgentRun:
+        """Create and persist an agent run record."""
+        run = AgentRun(
+            store_id=store_id,
+            agent_type=agent_type,
+            status=status,
+            state_at_run=state_at_run,
+            input_data=input_data,
+            output_data=output_data,
+            error_msg=error_msg,
+            retry_count=retry_count,
+            duration_ms=duration_ms,
+        )
+        self._session.add(run)
+        await self._session.flush()
+        return run

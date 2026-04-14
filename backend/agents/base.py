@@ -18,6 +18,10 @@ class AgentStatus(str, Enum):
     TIMEOUT = "timeout"
 
 
+# Alias so orchestrator code can use the more descriptive name
+AgentResultStatus = AgentStatus
+
+
 @dataclass
 class AgentResult:
     agent_type: str

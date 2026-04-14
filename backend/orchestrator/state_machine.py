@@ -95,7 +95,7 @@ class StateMachine:
     ) -> WorkflowInstance:
         """Move a store to MANUAL_REVIEW state."""
         wf = await self.get_or_create_workflow(db, store)
-        old_state = WorkflowState(wf.current_state)
+        _old_state = WorkflowState(wf.current_state)
 
         wf.current_state = WorkflowState.MANUAL_REVIEW.value
         wf.consecutive_failures = 0

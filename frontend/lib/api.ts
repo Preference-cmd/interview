@@ -1,3 +1,5 @@
+import { Store, WorkflowStatus, EventLog, DashboardSummary, Alert } from "./types";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function fetchAPI<T>(path: string): Promise<T> {
@@ -20,12 +22,12 @@ export async function importStores(stores: any[]) {
   return res.json();
 }
 
-export async function getStores() {
-  return fetchAPI<any[]>("/stores");
+export async function getStores(): Promise<Store[]> {
+  return fetchAPI<Store[]>("/stores");
 }
 
-export async function getStore(id: number) {
-  return fetchAPI<any>(`/stores/${id}`);
+export async function getStore(id: number): Promise<Store> {
+  return fetchAPI<Store>(`/stores/${id}`);
 }
 
 export async function startWorkflow(storeId: number) {
@@ -36,12 +38,12 @@ export async function startWorkflow(storeId: number) {
   return res.json();
 }
 
-export async function getStatus(storeId: number) {
-  return fetchAPI<any>(`/stores/${storeId}/status`);
+export async function getStatus(storeId: number): Promise<WorkflowStatus> {
+  return fetchAPI<WorkflowStatus>(`/stores/${storeId}/status`);
 }
 
-export async function getTimeline(storeId: number) {
-  return fetchAPI<any>(`/stores/${storeId}/timeline`);
+export async function getTimeline(storeId: number): Promise<EventLog[]> {
+  return fetchAPI<EventLog[]>(`/stores/${storeId}/timeline`);
 }
 
 export async function manualTakeover(storeId: number) {
@@ -52,12 +54,12 @@ export async function manualTakeover(storeId: number) {
   return res.json();
 }
 
-export async function getDashboard() {
-  return fetchAPI<any>("/dashboard/summary");
+export async function getDashboard(): Promise<DashboardSummary> {
+  return fetchAPI<DashboardSummary>("/dashboard/summary");
 }
 
-export async function getAlerts() {
-  return fetchAPI<any[]>("/alerts");
+export async function getAlerts(): Promise<Alert[]> {
+  return fetchAPI<Alert[]>("/alerts");
 }
 
 export async function acknowledgeAlert(alertId: number) {

@@ -77,6 +77,10 @@ export const STATE_COLORS: Record<string, string> = {
   WEEKLY_REPORT: "#10b981",
   DONE: "#22c55e",
   MANUAL_REVIEW: "#ef4444",
+  // Health states
+  high: "#22c55e", // Green
+  medium: "#f59e0b", // Amber
+  low: "#ef4444", // Red
 };
 
 export const AGENT_LABELS: Record<string, string> = {
@@ -101,4 +105,8 @@ export const STATE_LABELS: Record<string, string> = {
   WEEKLY_REPORT: "Weekly Report",
   DONE: "Completed",
   MANUAL_REVIEW: "Manual Review",
+  // Health states
+  high: "Healthy",
+  medium: "Caution",
+  low: "Unhealthy",
 };

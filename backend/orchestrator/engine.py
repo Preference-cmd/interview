@@ -146,67 +146,79 @@ class WorkflowEngine:
         Run workflow continuously through all states.
         Creates its own AsyncSession so it survives across HTTP requests.
         """
-        async with AsyncSessionLocal() as session:
-            store_store = StoreStore(session)
-            wf_store = WorkflowStore(session)
-            ar_store = AgentRunStore(session)
-            rp_store = ReportStore(session)
+        try:
+            async with AsyncSessionLocal() as session:
+                store_store = StoreStore(session)
+                wf_store = WorkflowStore(session)
+                ar_store = AgentRunStore(session)
+                rp_store = ReportStore(session)
 
-            # Build a fresh engine for this session
-            engine = _build_loop_engine(session, store_store, wf_store, ar_store, rp_store)
+                # Build a fresh engine for this session
+                engine = _build_loop_engine(session, store_store, wf_store, ar_store, rp_store)
 
-            # Re-fetch store and workflow with this session
-            store = await store_store.get_by_id(store_id)
-            if not store:
-                logger.error(f"Store {store_id} not found")
-                return None
+                # Re-fetch store and workflow with this session
+                store = await store_store.get_by_id(store_id)
+                if not store:
+                    logger.error(f"Store {store_id} not found")
+                    return None
 
-            wf = await wf_store.get_or_create_workflow(store.id)
+                wf = await wf_store.get_or_create_workflow(store.id)
 
-            while True:
-                state = WorkflowState(wf.current_state)
+                while True:
+                    state = WorkflowState(wf.current_state)
 
-                if state in (WorkflowState.DONE, WorkflowState.MANUAL_REVIEW):
-                    break
+                    if state in (WorkflowState.DONE, WorkflowState.MANUAL_REVIEW):
+                        break
 
-                # Mark as running
-                wf.is_running = True
-                session.add(wf)
-                await session.flush()
+                    # Mark as running
+                    wf.is_running = True
+                    session.add(wf)
+                    await session.flush()
 
-                logger.info(f"Loop: running state {state.value} for store {store.store_id}")
+                    logger.info(f"Loop: running state {state.value} for store {store.store_id}")
 
-                try:
-                    next_state = await engine._run_single_state(store, wf, state)
-                except Exception:
+                    try:
+                        next_state = await engine._run_single_state(store, wf, state)
+                    except Exception:
+                        wf.is_running = False
+                        session.add(wf)
+                        await session.commit()
+                        raise
+                    except asyncio.CancelledError:
+                        # Catch and handle gracefully — return instead of re-raise
+                        wf.is_running = False
+                        session.add(wf)
+                        await session.commit()
+                        logger.info(f"Loop: cancelled for store {store.store_id}")
+                        return wf
+
+                    # Persist after each step
+                    await wf_store.update_timestamp(wf)
                     wf.is_running = False
                     session.add(wf)
                     await session.commit()
-                    raise
 
-                # Persist after each step
-                await wf_store.update_timestamp(wf)
-                wf.is_running = False
-                session.add(wf)
-                await session.commit()
+                    # Check if terminal state reached
+                    if next_state in (WorkflowState.DONE, WorkflowState.MANUAL_REVIEW):
+                        logger.info(
+                            f"Loop: terminal state {next_state.value} reached for "
+                            f"store {store.store_id}"
+                        )
+                        break
 
-                # Check if terminal state reached
-                if next_state in (WorkflowState.DONE, WorkflowState.MANUAL_REVIEW):
-                    logger.info(
-                        f"Loop: terminal state {next_state.value} reached for "
-                        f"store {store.store_id}"
-                    )
-                    break
+                    try:
+                        await asyncio.sleep(delay_seconds)
+                    except asyncio.CancelledError:
+                        # Catch and handle gracefully — return instead of re-raise
+                        wf.is_running = False
+                        session.add(wf)
+                        await session.commit()
+                        logger.info(f"Loop: cancelled for store {store.store_id}")
+                        return wf
 
-                try:
-                    await asyncio.sleep(delay_seconds)
-                except asyncio.CancelledError:
-                    logger.info(f"Loop: cancelled for store {store.store_id}")
-                    # Mark not running on cancellation
-                    wf.is_running = False
-                    session.add(wf)
-                    await session.commit()
-                    raise
+        except asyncio.CancelledError:
+            # Outer cancellation (server shutdown) — propagate
+            raise
 
         return wf
 

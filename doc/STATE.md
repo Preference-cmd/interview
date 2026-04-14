@@ -1,6 +1,6 @@
 # 开发状态追踪
 
-> 最后更新：2026-04-16
+> 最后更新：2026-04-14
 
 ## 决策记录
 
@@ -12,7 +12,7 @@
 | 2026-04-14 | Frontend 设计规范存放于 `doc/specs/` | 与源码分离，便于独立演进 |
 | 2026-04-14 | Backend: SQL migration 系统替代 `create_all` | 支持生产环境 schema 演进 |
 | 2026-04-14 | Backend: 全面 async 化 + 模块化拆分 | 统一 sync/async 混乱现状 |
-| 2026-04-15 | Backend: routes → service → stores 三层架构 | 路由薄化、业务逻辑下沉、数据访问封装 |
+| 2026-04-14 | Backend: routes → service → stores 三层架构 | 路由薄化、业务逻辑下沉、数据访问封装 |
 
 ---
 

@@ -49,9 +49,38 @@ NEW_STORE → DIAGNOSIS → FOUNDATION → DAILY_OPS → WEEKLY_REPORT → DONE
 任意阶段异常 → MANUAL_REVIEW
 ```
 
+### Backend Architecture (Three Layers)
+
+```
+routes/     → FastAPI endpoints
+service/    → Business logic (WorkflowService)
+orchestrator/ → Workflow orchestration (no DB access)
+stores/     → Data access layer (DB persistence)
+```
+
+**Key principles:**
+- `orchestrator/` components have **no direct DB access** — all persistence goes through `stores/`
+- `StateMachine` is pure stateless logic — no `AsyncSession`, no `db.add`
+- `EventEmitter` only calls `db.add()` — receives pre-constructed model instances
+- `Engine` holds no `db` session — injected components handle all persistence
+- Agents are injected via `AgentRunner` — engine does not instantiate agents directly
+
 ### Directory Structure
 ```
-backend/              # FastAPI + SQLAlchemy + SQLite (see backend/main.py)
+backend/
+├── agents/            # Agent implementations (AnalyzerAgent, WebOperatorAgent, etc.)
+├── database.py        # SQLAlchemy async session setup
+├── main.py            # FastAPI app entry point
+├── models/            # SQLAlchemy models (Store, WorkflowInstance, AgentRun, etc.)
+├── orchestrator/      # Workflow orchestration
+│   ├── engine.py          # WorkflowEngine — orchestration entry point
+│   ├── state_machine.py  # Pure stateless state transition logic
+│   ├── event_emitter.py   # Thin EventLog/Alert persistence wrapper
+│   └── agent_runner.py    # Agent dispatch with retry and context updates
+├── routes/            # FastAPI route handlers
+├── schemas.py         # Pydantic request/response schemas
+├── service/          # Business logic services (WorkflowService, etc.)
+└── stores/           # Data access layer (WorkflowStore, AgentRunStore, etc.)
 frontend/
 ├── app/
 │   ├── page.tsx       # Dashboard
@@ -59,7 +88,7 @@ frontend/
 │   └── stores/[id]/page.tsx   # Store detail (see doc/README.md)
 ├── components/        # UI components
 └── lib/               # API client, types
-tests/                 # pytest (conftest.py, test_example.py)
+tests/                 # pytest (conftest.py, test_*.py)
 mock_data/             # JSON fixtures
 Makefile
 ```
